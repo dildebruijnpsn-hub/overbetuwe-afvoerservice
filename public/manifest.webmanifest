@@ -1,0 +1,19 @@
+﻿{
+  "name": "Overbetuwe Afvoerservice",
+  "short_name": "Overbetuwe",
+  "description": "Werkbonnen en planning voor Overbetuwe Afvoerservice.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0a3d7a",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
