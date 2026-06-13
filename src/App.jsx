@@ -716,11 +716,13 @@ function Logo({ small }) {
       src={LOGO_DATA_URL} 
       alt="Overbetuwe" 
       style={{ 
-        height: small ? 40 : 44,
+        height: small ? 'auto' : 44,
         maxWidth: small ? 220 : 260,
         width: '100%', 
         display: 'block',
         objectFit: 'contain',
+        transform: small ? 'translateY(-26%)' : 'none',
+        flexShrink: 0,
       }} 
     />
   );
