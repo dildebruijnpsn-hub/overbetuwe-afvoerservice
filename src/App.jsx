@@ -44,7 +44,7 @@ const TYPE_AFKORTING = {
   'Reparatie uitvoeren': 'Ru',
 };
 
-// Templates per type melding — kun je in opmerking invoegen als startpunt.
+// Templates per type melding â€” kun je in opmerking invoegen als startpunt.
 // Helemaal aan te passen / bij te typen / weg te halen.
 const TYPE_TEMPLATE = {
   'Camera inspectie': 'Constatering: \nAdvies: ',
@@ -75,7 +75,7 @@ const URGENTIES = ['Spoed', 'Hoog', 'Normaal', 'Laag'];
 const UITVOERING = ['Veren', 'Frezen', 'Doorspuiten', 'Plopper', 'Combinatie'];
 
 // =================== PRIJSLIJST (incl. BTW, per uur) ===================
-// Standaardwaarden — kunnen via Instellingen worden aangepast
+// Standaardwaarden â€” kunnen via Instellingen worden aangepast
 const PRIJSLIJST_STANDAARD = [
   { id: 'bus_normaal', label: 'Ontstoppingsbus particulier', tariefIncl: 195.00, tariefExcl: 161.16, weekend: false },
   { id: 'bus_weekend', label: 'Ontstoppingsbus weekendtarief', tariefIncl: 365.00, tariefExcl: 301.65, weekend: true },
@@ -85,7 +85,7 @@ const PRIJSLIJST_STANDAARD = [
   { id: 'medewerker', label: 'Extra medewerker', tariefIncl: 82.50, tariefExcl: 68.18, weekend: false },
 ];
 
-// Mutable kopie die wordt gebruikt door alle componenten — wordt overschreven met opgeslagen waarden uit Supabase
+// Mutable kopie die wordt gebruikt door alle componenten â€” wordt overschreven met opgeslagen waarden uit Supabase
 const PRIJSLIJST = PRIJSLIJST_STANDAARD.map(p => ({ ...p }));
 
 // Bepaal of een datum/tijd in het weekendtarief valt (vr 18:00 - ma 06:00)
@@ -102,7 +102,7 @@ function isWeekendTarief(datumString) {
 
 // Format euro-bedrag
 function euro(bedrag) {
-  return '€ ' + bedrag.toFixed(2).replace('.', ',');
+  return 'â‚¬ ' + bedrag.toFixed(2).replace('.', ',');
 }
 
 // Bereken totaal van prijsregels
@@ -221,17 +221,17 @@ function lokaleDatumSleutel(d) {
 function dbNaarInput(dbDatum) {
   if (!dbDatum) return '';
   const s = String(dbDatum);
-  // Alleen datum (geen tijd) → ongewijzigd laten
+  // Alleen datum (geen tijd) â†’ ongewijzigd laten
   if (!s.includes('T') && !s.includes(' ')) return s;
   // Heeft timezone-info? Detecteer ALLE varianten: Z, +HH, +HHMM, +HH:MM, -varianten
   const heeftTz = s.endsWith('Z') || /[+-]\d{2}(:?\d{2})?$/.test(s);
   if (heeftTz) {
     const d = new Date(s);
     if (!isNaN(d.getTime())) {
-      return datumNaarInput(d);  // → lokale tijd via getHours/getMinutes
+      return datumNaarInput(d);  // â†’ lokale tijd via getHours/getMinutes
     }
   }
-  // Geen timezone of niet-parseerbaar — knip op 16 chars en zet spatie om naar T.
+  // Geen timezone of niet-parseerbaar â€” knip op 16 chars en zet spatie om naar T.
   return s.replace(' ', 'T').slice(0, 16);
 }
 
@@ -261,7 +261,7 @@ function splitOpmerkingEnBon(volledigeTekst) {
   }
 }
 
-// Combineer een gewone opmerking met bongegevens tot één opmerking-string.
+// Combineer een gewone opmerking met bongegevens tot Ã©Ã©n opmerking-string.
 function combineerOpmerkingEnBon(opmerking, bonData) {
   const opm = String(opmerking || '');
   if (!bonData || Object.keys(bonData).length === 0) return opm;
@@ -275,7 +275,7 @@ function combineerOpmerkingEnBon(opmerking, bonData) {
 }
 
 // =================== MONTEUR HELPERS ===================
-// Eén monteur actief voor deze app. Oude samengestelde waarden kunnen nog worden gelezen.
+// EÃ©n monteur actief voor deze app. Oude samengestelde waarden kunnen nog worden gelezen.
 // Bij laden splitsen we ze weer.
 const MONTEUR_SCHEIDER = ' + ';
 
@@ -478,17 +478,17 @@ export default function OverbetuweApp() {
       const nuVolledig = datumNaarInput(new Date());        // bv. '2026-05-12T08:30'
       const huidigeTijd = nuVolledig.slice(11, 16);          // 'HH:MM'
       if (storing.datum && String(storing.datum).match(/^\d{4}-\d{2}-\d{2}$/)) {
-        // Alleen datum aanwezig — combineer met huidige tijd
+        // Alleen datum aanwezig â€” combineer met huidige tijd
         storing = { ...storing, datum: `${storing.datum}T${huidigeTijd}` };
       } else if (!storing.datum) {
-        // Helemaal leeg — gebruik huidige datum + tijd
+        // Helemaal leeg â€” gebruik huidige datum + tijd
         storing = { ...storing, datum: nuVolledig };
       }
     }
 
-    // Zorg dat geplandeDatum óók een tijd bevat (anders geen tijd zichtbaar in vandaag-blok)
+    // Zorg dat geplandeDatum Ã³Ã³k een tijd bevat (anders geen tijd zichtbaar in vandaag-blok)
     if (storing.geplandeDatum && String(storing.geplandeDatum).match(/^\d{4}-\d{2}-\d{2}$/)) {
-      // Alleen datum aanwezig — neem tijd uit datum (of 08:00 als fallback)
+      // Alleen datum aanwezig â€” neem tijd uit datum (of 08:00 als fallback)
       const tijdUitDatum = String(storing.datum || '').includes('T')
         ? String(storing.datum).split('T')[1].slice(0, 5)
         : '08:00';
@@ -599,7 +599,7 @@ export default function OverbetuweApp() {
               historie: [],
               opmerking: `Herhaling van klus van ${String(bron.datum || '').slice(0, 10)}`,
               prijsregels: [],
-              // Bonvelden niet kopiëren
+              // Bonvelden niet kopiÃ«ren
               klantNaam: bron.klantNaam || '',
               telefoon: bron.telefoon || '',
               email: bron.email || '',
@@ -675,7 +675,7 @@ function TopBar({ onHome }) {
       <button onClick={onHome} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
         <ArrowLeft size={20} />
       </button>
-      <div style={{ width: 136, height: 42, borderRadius: 14, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 8px', overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.10)' }}>
+      <div style={{ width: 198, maxWidth: 'calc(100vw - 148px)', height: 48, borderRadius: 15, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px 10px', overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.10)' }}>
         <Logo small />
       </div>
       <div style={{ flex: 1 }} />
@@ -716,9 +716,9 @@ function Logo({ small }) {
       src={LOGO_DATA_URL} 
       alt="Overbetuwe" 
       style={{ 
-        height: small ? 30 : 44,
-        maxWidth: small ? 122 : 260,
-        width: 'auto', 
+        height: small ? 40 : 44,
+        maxWidth: small ? 220 : 260,
+        width: '100%', 
         display: 'block',
         objectFit: 'contain',
       }} 
@@ -820,13 +820,13 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
   }, []);
 
   function weerEmoji(code) {
-    if (code === 0) return '☀️';
-    if (code <= 2) return '🌤️';
-    if (code === 3) return '☁️';
-    if (code >= 45 && code <= 48) return '🌫️';
-    if (code >= 51 && code <= 82) return '🌧️';
-    if (code >= 95) return '⛈️';
-    return '☁️';
+    if (code === 0) return 'â˜€ï¸';
+    if (code <= 2) return 'ðŸŒ¤ï¸';
+    if (code === 3) return 'â˜ï¸';
+    if (code >= 45 && code <= 48) return 'ðŸŒ«ï¸';
+    if (code >= 51 && code <= 82) return 'ðŸŒ§ï¸';
+    if (code >= 95) return 'â›ˆï¸';
+    return 'â˜ï¸';
   }
 
   const uur = new Date().getHours();
@@ -852,14 +852,11 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
   return (
     <div style={{ minHeight: '100vh', background: COLORS.bg }}>
       <div style={{ background: `linear-gradient(145deg, ${COLORS.blueDark} 0%, ${COLORS.blue} 58%, #123C78 100%)`, color: COLORS.white, padding: '14px 16px 22px', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, boxShadow: '0 18px 44px rgba(15,45,92,0.22)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 126, height: 42, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 232, maxWidth: 'calc(100vw - 132px)', height: 58, borderRadius: 18, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 12px', overflow: 'hidden', boxShadow: '0 14px 28px rgba(0,0,0,0.16)' }}>
             <Logo small />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 19, fontWeight: 850, lineHeight: 1.1, letterSpacing: 0 }}>{begroeting}</div>
-            <div style={{ marginTop: 4, fontSize: 12, opacity: 0.76, textTransform: 'capitalize' }}>{datumLabel}</div>
-          </div>
+          <div style={{ flex: 1 }} />
           <button type="button" aria-label="Notificaties" style={{ width: 38, height: 38, borderRadius: 14, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.10)', color: COLORS.white, display: 'grid', placeItems: 'center', position: 'relative' }}>
             <Bell size={19} />
             {spoedOpen.length > 0 && <span style={{ position: 'absolute', top: 6, right: 6, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, background: COLORS.accent, color: COLORS.white, fontSize: 10, fontWeight: 900 }}>{spoedOpen.length}</span>}
@@ -869,6 +866,11 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
           </button>
         </div>
 
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 24, fontWeight: 900, lineHeight: 1.05, letterSpacing: 0 }}>{begroeting}</div>
+          <div style={{ marginTop: 6, fontSize: 13, opacity: 0.78, textTransform: 'capitalize' }}>{datumLabel}</div>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center', marginTop: 18 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12, opacity: 0.72, fontWeight: 700, letterSpacing: 0.2 }}>Overbetuwe Riool- en Afvoerservice</div>
@@ -876,8 +878,8 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
           </div>
           {weer && (
             <div style={{ minWidth: 112, borderRadius: 18, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', padding: '10px 12px', textAlign: 'right' }}>
-              <div style={{ fontSize: 20, fontWeight: 850 }}>{weerEmoji(weer.code)} {weer.temp}°C</div>
-              <div style={{ marginTop: 2, fontSize: 11, opacity: 0.76 }}>Elst · later {weer.later}°C</div>
+              <div style={{ fontSize: 20, fontWeight: 850 }}>{weerEmoji(weer.code)} {weer.temp}Â°C</div>
+              <div style={{ marginTop: 2, fontSize: 11, opacity: 0.76 }}>Elst Â· later {weer.later}Â°C</div>
             </div>
           )}
         </div>
@@ -926,7 +928,7 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
                   <span style={{ width: 8, alignSelf: 'stretch', borderRadius: 999, background: k.urgentie === 'Spoed' ? COLORS.red : COLORS.blueLight }} />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 13, color: COLORS.text, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.adres}{k.plaats ? `, ${k.plaats}` : ''}</span>
-                    <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: COLORS.textLight }}>{String(k.geplandeDatum || '').includes('T') ? String(k.geplandeDatum).split('T')[1].slice(0, 5) : 'Tijd n.t.b.'} · {k.monteur || 'Monteur'} · {k.statusReparatie || 'Ingepland'}</span>
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: COLORS.textLight }}>{String(k.geplandeDatum || '').includes('T') ? String(k.geplandeDatum).split('T')[1].slice(0, 5) : 'Tijd n.t.b.'} Â· {k.monteur || 'Monteur'} Â· {k.statusReparatie || 'Ingepland'}</span>
                   </span>
                 </button>
               ))}
@@ -964,7 +966,7 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
                   <span style={{ width: 10, height: 10, borderRadius: 999, background: s.urgentie === 'Spoed' ? COLORS.red : COLORS.blueLight, flexShrink: 0 }} />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 13, color: COLORS.text, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.adres || 'Adres onbekend'}{s.plaats ? `, ${s.plaats}` : ''}</span>
-                    <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: COLORS.textLight }}>{s.typeMelding || 'Storing'} · {s.urgentie || 'Normaal'}</span>
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: COLORS.textLight }}>{s.typeMelding || 'Storing'} Â· {s.urgentie || 'Normaal'}</span>
                   </span>
                 </button>
               ))}
@@ -1017,7 +1019,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
     }
     return init;
   });
-  // Compatibiliteit: oude samengestelde monteurwaarden worden nog gelezen, maar de UI gebruikt één monteur.
+  // Compatibiliteit: oude samengestelde monteurwaarden worden nog gelezen, maar de UI gebruikt Ã©Ã©n monteur.
   const initialMonteurs = splitMonteurs(init.monteur || '');
   const [monteur2, setMonteur2] = useState(initialMonteurs.monteur2);
   const [toonTweedeMonteur, setToonTweedeMonteur] = useState(!!initialMonteurs.monteur2);
@@ -1036,7 +1038,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
   const [bonPreview, setBonPreview] = useState(null); // {onderwerp, body, email} of null
 
   const update = (veld, waarde) => {
-    // Bevestiging vragen bij status → Afgerond (om te voorkomen dat iemand per ongeluk afsluit)
+    // Bevestiging vragen bij status â†’ Afgerond (om te voorkomen dat iemand per ongeluk afsluit)
     if ((veld === 'statusReparatie' || veld === 'statusStoring') && waarde === 'Afgerond') {
       const huidigeWaarde = data[veld];
       if (huidigeWaarde !== 'Afgerond') {
@@ -1057,7 +1059,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
   };
 
   const isParticulier = data.opdrachtgever === 'Particulier';
-  const isBedrijfModus = vrijeNaamType === 'Bedrijf' || vrijeNaamType === 'VVE'; // Voor bon-knoppen zonder prijs (Bedrijf én VVE)
+  const isBedrijfModus = vrijeNaamType === 'Bedrijf' || vrijeNaamType === 'VVE'; // Voor bon-knoppen zonder prijs (Bedrijf Ã©n VVE)
   const toonBonBlok = isParticulier || isBedrijfModus;
   const alleFilterAdressen = ADRESSEN_DATABASE.filter(a =>
     (!data.opdrachtgever || a.opdrachtgever === data.opdrachtgever) &&
@@ -1092,13 +1094,13 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
       .sort((a, b) => new Date(b.datum) - new Date(a.datum)); // nieuwste eerst
   }, [alleStoringen, data.adres, data.plaats, bestaand]);
 
-  // Auto-bereken bonBedrag uit prijsregels (alleen bij Particulier — voor Bedrijf/VVE niet relevant)
+  // Auto-bereken bonBedrag uit prijsregels (alleen bij Particulier â€” voor Bedrijf/VVE niet relevant)
   useEffect(() => {
     if (!isParticulier) return;
     if (!data.prijsregels || data.prijsregels.length === 0) return;
     const totaal = berekenTotaal(data.prijsregels);
     if (totaal <= 0) return;
-    // Format als Nederlandse decimaal: 125.50 → "125,50"
+    // Format als Nederlandse decimaal: 125.50 â†’ "125,50"
     const nieuwBedrag = totaal.toFixed(2).replace('.', ',');
     if (data.bonBedrag !== nieuwBedrag) {
       setData(d => ({ ...d, bonBedrag: nieuwBedrag }));
@@ -1161,10 +1163,10 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               if (STANDAARD_OPDRACHTGEVERS.includes(huidigeNaam)) {
                 update('opdrachtgever', v === 'VVE' ? 'VVE: ' : '');
               } else if (v === 'VVE' && !huidigeNaam.startsWith('VVE: ')) {
-                // Van Bedrijf naar VVE → voeg prefix toe
+                // Van Bedrijf naar VVE â†’ voeg prefix toe
                 update('opdrachtgever', 'VVE: ' + naamZonderPrefix);
               } else if (v === 'Bedrijf' && huidigeNaam.startsWith('VVE: ')) {
-                // Van VVE naar Bedrijf → prefix weghalen
+                // Van VVE naar Bedrijf â†’ prefix weghalen
                 update('opdrachtgever', naamZonderPrefix);
               }
               setVrijeNaamType(v);
@@ -1215,7 +1217,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
       {adresGeschiedenis.length > 0 && (
         <div style={{ background: '#fff8d4', border: `1px solid ${COLORS.yellow}`, borderRadius: 8, padding: 10, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, color: COLORS.blue, fontSize: 13, marginBottom: 6 }}>
-            ⚠️ Dit adres had eerder {adresGeschiedenis.length} storing{adresGeschiedenis.length !== 1 ? 'en' : ''}
+            âš ï¸ Dit adres had eerder {adresGeschiedenis.length} storing{adresGeschiedenis.length !== 1 ? 'en' : ''}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {adresGeschiedenis.slice(0, 3).map(s => {
@@ -1223,9 +1225,9 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               return (
                 <div key={s.id} style={{ fontSize: 12, color: COLORS.text, padding: '4px 6px', background: COLORS.white, borderRadius: 4 }}>
                   <span style={{ fontWeight: 600 }}>{datum}</span>
-                  {s.typeMelding && <span> · {s.typeMelding}</span>}
-                  {s.oorzaak && <span> · {s.oorzaak}</span>}
-                  {s.monteur && <span style={{ color: COLORS.textLight }}> · {s.monteur}</span>}
+                  {s.typeMelding && <span> Â· {s.typeMelding}</span>}
+                  {s.oorzaak && <span> Â· {s.oorzaak}</span>}
+                  {s.monteur && <span style={{ color: COLORS.textLight }}> Â· {s.monteur}</span>}
                 </div>
               );
             })}
@@ -1265,7 +1267,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
       <Veld label="Urgentie">
         <Dropdown waarde={data.urgentie} opties={URGENTIES} onKies={v => update('urgentie', v)} placeholder="Kies urgentie" rood={data.urgentie === 'Spoed'} />
         {(data.oorzaak === 'Wortels' || data.oorzaak === 'Riool breuk') && (
-          <p style={{ fontSize: 12, color: COLORS.red, marginTop: 4, fontWeight: 600 }}>⚡ Automatisch op Spoed gezet door oorzaak</p>
+          <p style={{ fontSize: 12, color: COLORS.red, marginTop: 4, fontWeight: 600 }}>âš¡ Automatisch op Spoed gezet door oorzaak</p>
         )}
       </Veld>
 
@@ -1303,7 +1305,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
       {toonBonBlok && (
         <div style={{ background: '#fffdf5', border: `2px solid ${COLORS.yellow}`, borderRadius: 12, padding: 14, marginTop: 14, marginBottom: 14 }}>
           <h3 style={{ color: COLORS.blue, fontSize: 15, fontWeight: 800, margin: '0 0 4px' }}>
-            🧾 {isParticulier ? 'Particuliere bongegevens' : (vrijeNaamType === 'VVE' ? 'Bon / contactgegevens VVE' : 'Bon / contactgegevens bedrijf')}
+            ðŸ§¾ {isParticulier ? 'Particuliere bongegevens' : (vrijeNaamType === 'VVE' ? 'Bon / contactgegevens VVE' : 'Bon / contactgegevens bedrijf')}
           </h3>
           <p style={{ fontSize: 12, color: COLORS.textLight, margin: '0 0 12px' }}>
             {isBedrijfModus
@@ -1353,7 +1355,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                 />
               </Veld>
 
-              <Veld label="Bedrag (€)">
+              <Veld label="Bedrag (â‚¬)">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -1370,8 +1372,8 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                     <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, color: COLORS.textLight }}>
                         {isGelijk
-                          ? `✓ Automatisch berekend uit prijsregels (€ ${berekendStr})`
-                          : `⚠️ Wijkt af van prijsberekening (€ ${berekendStr})`}
+                          ? `âœ“ Automatisch berekend uit prijsregels (â‚¬ ${berekendStr})`
+                          : `âš ï¸ Wijkt af van prijsberekening (â‚¬ ${berekendStr})`}
                       </span>
                       {!isGelijk && (
                         <button
@@ -1388,13 +1390,13 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                             cursor: 'pointer',
                           }}
                         >
-                          🔄 Overnemen
+                          ðŸ”„ Overnemen
                         </button>
                       )}
                     </div>
                   );
                 })()}
-                {/* Rabo SmartPin opener — opent de Rabo app om te pinnen */}
+                {/* Rabo SmartPin opener â€” opent de Rabo app om te pinnen */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1407,7 +1409,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                       // iPhone: open App Store pagina
                       window.location.href = 'https://apps.apple.com/nl/app/rabo-smartpin/id998267423';
                     } else if (isAndroid) {
-                      // Android Intent URL met fallback naar Play Store als app niet geïnstalleerd is
+                      // Android Intent URL met fallback naar Play Store als app niet geÃ¯nstalleerd is
                       const fallback = 'https://play.google.com/store/apps/details?id=com.myorder.pinbox.mpos';
                       window.location.href = `intent://#Intent;package=com.myorder.pinbox.mpos;scheme=https;S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
                     } else {
@@ -1432,10 +1434,10 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                     gap: 8,
                   }}
                 >
-                  💳 Open Rabo SmartPin
+                  ðŸ’³ Open Rabo SmartPin
                 </button>
                 <p style={{ fontSize: 11, color: COLORS.textLight, margin: '4px 0 0', textAlign: 'center' }}>
-                  Bedrag staat hierboven — tik bedrag in de Rabo-app om te pinnen
+                  Bedrag staat hierboven â€” tik bedrag in de Rabo-app om te pinnen
                 </p>
               </Veld>
             </>
@@ -1450,7 +1452,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
             />
           </Veld>
 
-          {/* HOOFDACTIE: Verstuur bon naar klant — opent preview */}
+          {/* HOOFDACTIE: Verstuur bon naar klant â€” opent preview */}
           <button
             type="button"
             onClick={() => {
@@ -1478,7 +1480,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               marginTop: 4,
             }}
           >
-            📤 Verstuur bon naar {isParticulier ? 'klant' : (vrijeNaamType === 'VVE' ? 'VVE' : 'bedrijf')}
+            ðŸ“¤ Verstuur bon naar {isParticulier ? 'klant' : (vrijeNaamType === 'VVE' ? 'VVE' : 'bedrijf')}
           </button>
 
           {/* Secundaire knop: Download PDF apart */}
@@ -1499,10 +1501,10 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               marginTop: 8,
             }}
           >
-            📄 PDF downloaden / printen
+            ðŸ“„ PDF downloaden / printen
           </button>
           <p style={{ fontSize: 11, color: COLORS.textLight, marginTop: 6, textAlign: 'center' }}>
-            "Verstuur" opent een preview · je kunt de tekst nog aanpassen voor verzenden
+            "Verstuur" opent een preview Â· je kunt de tekst nog aanpassen voor verzenden
           </p>
         </div>
       )}
@@ -1526,17 +1528,17 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               cursor: 'pointer',
             }}
           >
-            📋 Template invullen ({data.typeMelding})
+            ðŸ“‹ Template invullen ({data.typeMelding})
           </button>
         )}
       </Veld>
 
-      {/* Herhaling plannen — alleen bij afgeronde Camera inspectie of Preventief reinigen */}
+      {/* Herhaling plannen â€” alleen bij afgeronde Camera inspectie of Preventief reinigen */}
       {bestaand && data.statusReparatie === 'Afgerond' && onPlanHerhaling &&
         (data.typeMelding === 'Preventief reinigen' || data.typeMelding === 'Camera inspectie') && (
         <div style={{ background: '#f0f8f0', border: `2px solid #7cb342`, borderRadius: 12, padding: 14, marginTop: 14, marginBottom: 14 }}>
           <h3 style={{ color: COLORS.blue, fontSize: 15, fontWeight: 800, margin: '0 0 4px' }}>
-            🔁 Plan herhaling
+            ðŸ” Plan herhaling
           </h3>
           <p style={{ fontSize: 12, color: COLORS.textLight, margin: '0 0 12px' }}>
             Maak automatisch een nieuwe klus aan voor over X maanden op hetzelfde adres.
@@ -1596,7 +1598,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               {filterAdressen.map((a, i) => (
                 <button key={i} onClick={() => kiesAdres(a)} style={{ width: '100%', padding: 14, marginBottom: 8, border: `1px solid ${COLORS.border}`, borderRadius: 10, background: COLORS.white, textAlign: 'left', cursor: 'pointer' }}>
                   <div style={{ fontWeight: 700, color: COLORS.text }}>{a.straat} {a.huisnummer}</div>
-                  <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 2 }}>{a.postcode} {a.plaats} • {a.opdrachtgever}</div>
+                  <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 2 }}>{a.postcode} {a.plaats} â€¢ {a.opdrachtgever}</div>
                 </button>
               ))}
               {meerResultaten > 0 && (
@@ -1609,17 +1611,17 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
         </div>
       )}
 
-      {/* BON PREVIEW MODAL — toont email-tekst voor verzenden, met 3 opties */}
+      {/* BON PREVIEW MODAL â€” toont email-tekst voor verzenden, met 3 opties */}
       {bonPreview && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setBonPreview(null)}>
           <div style={{ background: COLORS.white, width: '100%', maxWidth: 600, maxHeight: '92vh', borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div style={{ padding: 16, borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h3 style={{ flex: 1, fontWeight: 800, color: COLORS.blue, margin: 0, fontSize: 17 }}>📤 Bon versturen</h3>
+              <h3 style={{ flex: 1, fontWeight: 800, color: COLORS.blue, margin: 0, fontSize: 17 }}>ðŸ“¤ Bon versturen</h3>
               <button onClick={() => setBonPreview(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}><X size={24} color={COLORS.text} /></button>
             </div>
 
-            {/* Body — scrollbaar */}
+            {/* Body â€” scrollbaar */}
             <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
               <Veld label="E-mailadres ontvanger">
@@ -1649,10 +1651,10 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               </Veld>
 
               <div style={{ background: '#fffdf5', border: `1px solid ${COLORS.yellow}`, borderRadius: 8, padding: 10, fontSize: 12, color: COLORS.text }}>
-                <strong>💡 Hoe werkt het?</strong><br/>
-                <strong>📤 Deel via app</strong> — opent je deel-menu (Mail, WhatsApp, etc.) met PDF als bijlage<br/>
-                <strong>📧 E-mail openen</strong> — opent mail-app met tekst (PDF moet je apart als bijlage toevoegen)<br/>
-                <strong>📄 PDF opslaan</strong> — slaat de bon op je telefoon op
+                <strong>ðŸ’¡ Hoe werkt het?</strong><br/>
+                <strong>ðŸ“¤ Deel via app</strong> â€” opent je deel-menu (Mail, WhatsApp, etc.) met PDF als bijlage<br/>
+                <strong>ðŸ“§ E-mail openen</strong> â€” opent mail-app met tekst (PDF moet je apart als bijlage toevoegen)<br/>
+                <strong>ðŸ“„ PDF opslaan</strong> â€” slaat de bon op je telefoon op
               </div>
             </div>
 
@@ -1680,7 +1682,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                   boxShadow: '0 3px 0 rgba(0,0,0,0.12)',
                 }}
               >
-                📤 Deel via app (Mail, WhatsApp, ...)
+                ðŸ“¤ Deel via app (Mail, WhatsApp, ...)
               </button>
 
               {/* Secundair: 2 knoppen naast elkaar */}
@@ -1703,7 +1705,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                     cursor: 'pointer',
                   }}
                 >
-                  📧 Mail-app
+                  ðŸ“§ Mail-app
                 </button>
                 <button
                   type="button"
@@ -1720,7 +1722,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                     cursor: 'pointer',
                   }}
                 >
-                  📄 PDF opslaan
+                  ðŸ“„ PDF opslaan
                 </button>
               </div>
             </div>
@@ -1783,7 +1785,7 @@ function SnelleAdresZoeker({ onKies }) {
                 {a.straat} {a.huisnummer}
               </div>
               <div style={{ fontSize: 12, color: COLORS.textLight, marginTop: 2 }}>
-                {a.plaats} • {a.opdrachtgever}
+                {a.plaats} â€¢ {a.opdrachtgever}
               </div>
             </div>
           ))}
@@ -1798,7 +1800,7 @@ function SnelleAdresZoeker({ onKies }) {
   );
 }
 
-// Open mail-app met bon-gegevens als tekst — werkt in alle browsers via mailto:
+// Open mail-app met bon-gegevens als tekst â€” werkt in alle browsers via mailto:
 // Genereer de email-tekst + onderwerp (gebruikt door preview, mailto, en delen)
 function maakBonEmail(data) {
   const datumStr = data.datum ? String(data.datum).slice(0, 10) : new Date().toLocaleDateString('nl-NL');
@@ -1820,7 +1822,7 @@ function maakBonEmail(data) {
     '',
     'Hierbij ontvangt u de werkbon van de uitgevoerde werkzaamheden.',
     '',
-    '────────────────────────────────────',
+    'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€',
     `Datum: ${datumStr}`,
     data.adres ? `Adres: ${data.adres}${data.plaats ? ', ' + data.plaats : ''}` : '',
     data.typeMelding ? `Werkzaamheden: ${data.typeMelding}` : '',
@@ -1830,12 +1832,12 @@ function maakBonEmail(data) {
     data.opgelost ? `Opgelost: ${data.opgelost}` : '',
     data.reparatieNodig ? `Reparatie nodig: ${data.reparatieNodig}` : '',
     data.opmerking ? `Werkbon opmerking: ${data.opmerking}` : '',
-    '────────────────────────────────────',
+    'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€',
     '',
   ].filter(Boolean);
 
   if (data.bonBedrag && !geenPrijs) {
-    regels.push(`Totaalbedrag: € ${data.bonBedrag}`);
+    regels.push(`Totaalbedrag: â‚¬ ${data.bonBedrag}`);
     if (data.betalingMethode) regels.push(`Betaalwijze: ${data.betalingMethode}`);
     if (data.bonOpmerking) regels.push(`Opmerking: ${data.bonOpmerking}`);
     regels.push('');
@@ -1931,8 +1933,8 @@ function maakBonHtml(data) {
     return `<tr>
       <td>${escapeHtml(item.label)}</td>
       <td style="text-align:center">${uren.toFixed(2)}</td>
-      <td style="text-align:right">€ ${tarief.toFixed(2)}</td>
-      <td style="text-align:right">€ ${regelTotaal.toFixed(2)}</td>
+      <td style="text-align:right">â‚¬ ${tarief.toFixed(2)}</td>
+      <td style="text-align:right">â‚¬ ${regelTotaal.toFixed(2)}</td>
     </tr>`;
   }).join('');
 
@@ -1978,7 +1980,7 @@ function maakBonHtml(data) {
 </head>
 <body>
   <div class="acties">
-    <button class="knop-print" onclick="window.print()">📄 Opslaan als PDF / Printen</button>
+    <button class="knop-print" onclick="window.print()">ðŸ“„ Opslaan als PDF / Printen</button>
     <button class="knop-sluit" onclick="window.close()">Sluiten</button>
   </div>
 
@@ -2059,22 +2061,22 @@ function maakBonHtml(data) {
   </table>
   <div class="totaal-blok">
     <table class="totaal-tabel">
-      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">€ ${totaalEx.toFixed(2)}</td></tr>
-      <tr><td>BTW (21%):</td><td style="text-align:right">€ ${btw.toFixed(2)}</td></tr>
-      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">€ ${totaal.toFixed(2)}</td></tr>
+      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">â‚¬ ${totaalEx.toFixed(2)}</td></tr>
+      <tr><td>BTW (21%):</td><td style="text-align:right">â‚¬ ${btw.toFixed(2)}</td></tr>
+      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">â‚¬ ${totaal.toFixed(2)}</td></tr>
     </table>
   </div>
   ` : ''}
 
   ${(!isBedrijfBon && (data.bonBedrag || data.bonOpmerking)) ? `
   <div style="margin-top: 16px; padding: 12px; border: 1px solid #1a3a6e; border-radius: 6px;">
-    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: € ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
+    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: â‚¬ ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
     ${data.bonOpmerking ? `<div style="font-size: 13px; color: #333;">${escapeHtml(data.bonOpmerking)}</div>` : ''}
   </div>` : ''}
 
   ${data.betalingMethode ? `
   <div class="betaling">
-    ${data.betalingMethode === 'PIN betaald' ? '✅ PIN BETAALD' : '📨 OP REKENING'}
+    ${data.betalingMethode === 'PIN betaald' ? 'âœ… PIN BETAALD' : 'ðŸ“¨ OP REKENING'}
   </div>
   ` : ''}
 
@@ -2130,7 +2132,7 @@ function Dropdown({ waarde, opties, onKies, placeholder, rood }) {
             <div style={{ overflowY: 'auto', padding: 8 }}>
               {opties.map(o => (
                 <button key={o} onClick={() => { onKies(o); setOpen(false); }} style={{ width: '100%', padding: '16px 14px', border: 'none', background: waarde === o ? COLORS.yellow : COLORS.white, color: waarde === o ? COLORS.blue : COLORS.text, textAlign: 'left', fontSize: 16, borderRadius: 8, cursor: 'pointer', fontWeight: waarde === o ? 700 : 500, marginBottom: 2 }}>
-                  {waarde === o && '✓ '}{o}
+                  {waarde === o && 'âœ“ '}{o}
                 </button>
               ))}
             </div>
@@ -2189,7 +2191,7 @@ function PrijsSectie({ datum, prijsregels, onWijzig }) {
   return (
     <div style={{ marginBottom: 14, background: COLORS.bg, padding: 14, borderRadius: 12, border: `2px dashed ${COLORS.yellow}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <label style={{ fontSize: 14, fontWeight: 700, color: COLORS.blue }}>💶 Prijsberekening (particulier)</label>
+        <label style={{ fontSize: 14, fontWeight: 700, color: COLORS.blue }}>ðŸ’¶ Prijsberekening (particulier)</label>
         {weekend && (
           <span style={{ background: COLORS.red, color: COLORS.white, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
             WEEKENDTARIEF
@@ -2285,7 +2287,7 @@ function ReparatiePlanning({ storingen, onBewerk, onVerwijder }) {
         </button>
       </div>
 
-      <p style={{ color: COLORS.textLight, fontSize: 14, marginBottom: 16 }}>{reparaties.length} open reparatie{reparaties.length !== 1 ? 's' : ''} • Spoed bovenaan</p>
+      <p style={{ color: COLORS.textLight, fontSize: 14, marginBottom: 16 }}>{reparaties.length} open reparatie{reparaties.length !== 1 ? 's' : ''} â€¢ Spoed bovenaan</p>
 
       {reparaties.length === 0 && (
         <div style={{ background: COLORS.white, padding: 40, borderRadius: 12, textAlign: 'center', color: COLORS.textLight }}>
@@ -2337,7 +2339,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
 </style>
 </head>
 <body>
-<button onclick="window.print()" class="geen-print print-knop">🖨️ Afdrukken / Opslaan als PDF</button>
+<button onclick="window.print()" class="geen-print print-knop">ðŸ–¨ï¸ Afdrukken / Opslaan als PDF</button>
 <div class="header">
   <div>
     <h1>Overbetuwe</h1>
@@ -2350,7 +2352,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
 </div>
 <div class="content">
   <h2>${escapeHtml(r.adres)}</h2>
-  <div class="meta">${escapeHtml(r.plaats)} · ${escapeHtml(r.opdrachtgever)}</div>
+  <div class="meta">${escapeHtml(r.plaats)} Â· ${escapeHtml(r.opdrachtgever)}</div>
 
   <div>
     <span class="badge ${r.urgentie === 'Spoed' ? 'badge-spoed' : r.urgentie === 'Hoog' ? 'badge-hoog' : ''}">${escapeHtml(r.urgentie)}</span>
@@ -2377,7 +2379,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
 
   ${(r.opdrachtgever === 'Particulier' && r.prijsregels && r.prijsregels.length > 0) ? `
     <div class="prijzen">
-      <h3 style="color:#0a3d7a;font-size:13pt;margin:18px 0 6px;padding-bottom:4px;border-bottom:2px solid #ffd100;">💶 Specificatie</h3>
+      <h3 style="color:#0a3d7a;font-size:13pt;margin:18px 0 6px;padding-bottom:4px;border-bottom:2px solid #ffd100;">ðŸ’¶ Specificatie</h3>
       <table style="width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:8px;">
         <thead>
           <tr style="background:#0a3d7a;color:white;">
@@ -2416,7 +2418,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
   ${r.historie && r.historie.length > 0 ? `
     <div class="historie">
       <h3>Geschiedenis</h3>
-      ${r.historie.map(h => `<div class="historie-item">${formatDatum(h.tijd)} ${new Date(h.tijd).toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'})} — ${h.veld === 'aangemaakt' ? escapeHtml(h.naar) : `<strong>${escapeHtml(h.veld)}</strong>: ${escapeHtml(h.van)} → ${escapeHtml(h.naar)}`}</div>`).join('')}
+      ${r.historie.map(h => `<div class="historie-item">${formatDatum(h.tijd)} ${new Date(h.tijd).toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'})} â€” ${h.veld === 'aangemaakt' ? escapeHtml(h.naar) : `<strong>${escapeHtml(h.veld)}</strong>: ${escapeHtml(h.van)} â†’ ${escapeHtml(h.naar)}`}</div>`).join('')}
     </div>
   ` : ''}
 
@@ -2467,21 +2469,21 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
         {r.adres}, {r.plaats}
       </div>
       <div style={{ fontSize: 14, color: COLORS.textLight, marginBottom: 8 }}>
-        {r.opdrachtgever} • Gemeld {formatDatum(r.datum)} door {r.monteur}
+        {r.opdrachtgever} â€¢ Gemeld {formatDatum(r.datum)} door {r.monteur}
       </div>
       <div style={{ display: 'flex', gap: 12, fontSize: 13, marginBottom: 8, flexWrap: 'wrap' }}>
         {r.oorzaak && <span><strong>Oorzaak:</strong> {r.oorzaak}</span>}
         <span><strong>Status:</strong> {r.statusReparatie}</span>
         {r.geplandeDatum && <span><strong>Gepland:</strong> {formatDatum(r.geplandeDatum)}</span>}
         {r.opdrachtgever === 'Particulier' && berekenTotaal(r.prijsregels) > 0 && (
-          <span style={{ color: COLORS.blue, fontWeight: 700 }}>💶 {euro(berekenTotaal(r.prijsregels))}</span>
+          <span style={{ color: COLORS.blue, fontWeight: 700 }}>ðŸ’¶ {euro(berekenTotaal(r.prijsregels))}</span>
         )}
       </div>
       {r.opmerking && <div style={{ fontSize: 13, color: COLORS.textLight, fontStyle: 'italic', marginBottom: 8, padding: 8, background: COLORS.bg, borderRadius: 6 }}>{r.opmerking}</div>}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
         <button onClick={maakPdf} style={{ flex: 1, minWidth: 110, padding: '10px', background: COLORS.yellow, color: COLORS.blue, border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 14 }}>
-          📄 PDF
+          ðŸ“„ PDF
         </button>
         <button onClick={onBewerk} style={{ flex: 1, minWidth: 110, padding: '10px', background: COLORS.blue, color: COLORS.white, border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 14 }}>
           <Edit2 size={14} /> Bewerken
@@ -2494,14 +2496,14 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
       {r.historie && r.historie.length > 0 && (
         <details style={{ marginTop: 10 }}>
           <summary style={{ cursor: 'pointer', fontSize: 12, color: COLORS.textLight, fontWeight: 600, padding: '4px 0' }}>
-            📋 Geschiedenis ({r.historie.length})
+            ðŸ“‹ Geschiedenis ({r.historie.length})
           </summary>
           <div style={{ marginTop: 6, paddingLeft: 12, borderLeft: `2px solid ${COLORS.border}` }}>
             {r.historie.slice().reverse().map((h, idx) => (
               <div key={idx} style={{ fontSize: 12, color: COLORS.textLight, marginBottom: 4 }}>
                 <span style={{ fontWeight: 600 }}>{formatDatum(h.tijd)} {new Date(h.tijd).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span>
-                {' — '}
-                {h.veld === 'aangemaakt' ? h.naar : <span><strong>{h.veld}</strong>: {h.van} → {h.naar}</span>}
+                {' â€” '}
+                {h.veld === 'aangemaakt' ? h.naar : <span><strong>{h.veld}</strong>: {h.van} â†’ {h.naar}</span>}
               </div>
             ))}
           </div>
@@ -2579,7 +2581,7 @@ function AdresZoeker({ storingen, onNieuweStoring }) {
 
       <p style={{ color: COLORS.textLight, fontSize: 13, marginBottom: 12 }}>
         {alleenMetGeschiedenis
-          ? `${totaalAantal} adres${totaalAantal !== 1 ? 'sen' : ''} met geschiedenis • Database: ${ADRESSEN_DATABASE.length} adressen`
+          ? `${totaalAantal} adres${totaalAantal !== 1 ? 'sen' : ''} met geschiedenis â€¢ Database: ${ADRESSEN_DATABASE.length} adressen`
           : `${totaalAantal} resultaten`}
       </p>
 
@@ -2592,7 +2594,7 @@ function AdresZoeker({ storingen, onNieuweStoring }) {
       {tonen.map((a, i) => (
         <div key={i} style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text }}>{a.straat} {a.huisnummer}</div>
-          <div style={{ fontSize: 13, color: COLORS.textLight, marginBottom: 8 }}>{a.postcode} {a.plaats} • {a.opdrachtgever}</div>
+          <div style={{ fontSize: 13, color: COLORS.textLight, marginBottom: 8 }}>{a.postcode} {a.plaats} â€¢ {a.opdrachtgever}</div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
             <span style={{ background: COLORS.bg, padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600 }}>
@@ -2723,7 +2725,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
       return;
     }
     if (pdfVan > pdfTot) {
-      alert('De "Van"-datum moet vóór de "Tot"-datum liggen.');
+      alert('De "Van"-datum moet vÃ³Ã³r de "Tot"-datum liggen.');
       return;
     }
 
@@ -2790,7 +2792,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
   .print-knop { position: fixed; top: 10px; right: 10px; padding: 10px 16px; background: #0a3d7a; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 700; z-index: 999; }
 </style></head>
 <body>
-<button onclick="window.print()" class="geen-print print-knop">🖨️ Afdrukken / Opslaan als PDF</button>
+<button onclick="window.print()" class="geen-print print-knop">ðŸ–¨ï¸ Afdrukken / Opslaan als PDF</button>
 <div class="header">
   <div>
     <h1>Overbetuwe</h1>
@@ -2834,7 +2836,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
   ${terugkerendeAdr.length > 0 ? `
     <h3>Terugkerende adressen (deze periode)</h3>
     <ul class="lijst">
-      ${terugkerendeAdr.map(([adr, n]) => `<li><strong>${escapeHtml(adr)}</strong> — ${n} bezoeken</li>`).join('')}
+      ${terugkerendeAdr.map(([adr, n]) => `<li><strong>${escapeHtml(adr)}</strong> â€” ${n} bezoeken</li>`).join('')}
     </ul>
   ` : ''}
 
@@ -2896,7 +2898,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
 
       {/* Periode-PDF generator */}
       <div style={{ background: COLORS.white, border: `2px solid ${COLORS.yellow}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>📄 Periodeoverzicht (PDF)</h3>
+        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>ðŸ“„ Periodeoverzicht (PDF)</h3>
         <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0 0 12px' }}>Maak een professioneel rapport over een vrije periode. Handig voor maandafrekeningen of weekoverzichten.</p>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: 4 }}>Opdrachtgever</label>
@@ -2923,13 +2925,13 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
         </div>
 
         <button onClick={maakPeriodePdf} style={{ width: '100%', padding: '12px', background: COLORS.yellow, color: COLORS.blue, border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 15 }}>
-          📄 Maak rapport
+          ðŸ“„ Maak rapport
         </button>
       </div>
 
       {/* Backup */}
       <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>💾 Backup</h3>
+        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>ðŸ’¾ Backup</h3>
         <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0 0 12px' }}>Download alle storingen als CSV-bestand voor je eigen archief. Open in Excel of Google Sheets.</p>
         <button onClick={downloadAllesCSV} style={{ width: '100%', padding: '12px', background: COLORS.blue, color: COLORS.white, border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <Download size={18} /> Download alle data ({storingen.length} storingen)
@@ -2960,7 +2962,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
             <div style={{ fontWeight: 700, color: COLORS.blue, marginBottom: 8, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 10, height: 10, borderRadius: '50%', background: opdrachtKleur, flexShrink: 0 }}></span>
               {o.naam}
-              {klikbaar && <span style={{ marginLeft: 'auto', color: COLORS.textLight, fontSize: 16 }}>›</span>}
+              {klikbaar && <span style={{ marginLeft: 'auto', color: COLORS.textLight, fontSize: 16 }}>â€º</span>}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, fontSize: 13 }}>
               <div>Deze maand: <strong>{o.dezeMaand}</strong></div>
@@ -2976,9 +2978,9 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
       {/* Storingen beheren / verwijderen */}
       {onVerwijder && (
         <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginTop: 16 }}>
-          <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>🗑️ Storingen beheren</h3>
+          <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>ðŸ—‘ï¸ Storingen beheren</h3>
           <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0 0 12px' }}>
-            Bekijk en verwijder álle storingen — ook al opgeloste of afgeronde meldingen.
+            Bekijk en verwijder Ã¡lle storingen â€” ook al opgeloste of afgeronde meldingen.
           </p>
           <DashboardStoringenBeheer storingen={storingen} onBewerk={onBewerk} onVerwijder={onVerwijder} />
         </div>
@@ -3022,7 +3024,7 @@ function DashboardStoringenBeheer({ storingen, onBewerk, onVerwijder }) {
         onClick={() => setOpen(true)}
         style={{ width: '100%', padding: '12px', background: COLORS.bg, color: COLORS.blue, border: `1px solid ${COLORS.border}`, borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
       >
-        📂 Open beheer ({storingen.length} storingen)
+        ðŸ“‚ Open beheer ({storingen.length} storingen)
       </button>
     );
   }
@@ -3107,7 +3109,7 @@ function DashboardStoringenBeheer({ storingen, onBewerk, onVerwijder }) {
                   {s.adres} {s.huisnummer || ''}
                 </div>
                 <div style={{ fontSize: 11, color: COLORS.textLight }}>
-                  {s.plaats} • {formatDatum(s.datum)} {s.opdrachtgever ? '• ' + s.opdrachtgever : ''}
+                  {s.plaats} â€¢ {formatDatum(s.datum)} {s.opdrachtgever ? 'â€¢ ' + s.opdrachtgever : ''}
                 </div>
               </div>
               {isSpoed && !isAfgerond && (
@@ -3139,7 +3141,7 @@ function DashboardStoringenBeheer({ storingen, onBewerk, onVerwijder }) {
 
       {meer > 0 && (
         <p style={{ color: COLORS.textLight, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
-          + nog {meer} resultaten — verfijn je zoekopdracht om meer te zien
+          + nog {meer} resultaten â€” verfijn je zoekopdracht om meer te zien
         </p>
       )}
     </div>
@@ -3174,7 +3176,7 @@ function StatKaart({ label, waarde, kleur, onKlik }) {
       <div style={{ fontSize: 32, fontWeight: 800, color: kleur, lineHeight: 1 }}>{waarde}</div>
       <div style={{ fontSize: 12, color: COLORS.textLight, marginTop: 4, fontWeight: 600 }}>{label}</div>
       {klikbaar && (
-        <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 14, color: COLORS.textLight, fontWeight: 700 }}>›</div>
+        <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 14, color: COLORS.textLight, fontWeight: 700 }}>â€º</div>
       )}
     </div>
   );
@@ -3212,7 +3214,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
     dagen.push(d);
   }
 
-  // Klussen die ingepland staan (geplandeDatum gevuld) — inclusief afgerond
+  // Klussen die ingepland staan (geplandeDatum gevuld) â€” inclusief afgerond
   const ingepland = useMemo(() => {
     const z = zoekTerm.trim().toLowerCase();
     return storingen.filter(s => {
@@ -3408,7 +3410,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
         </div>
       </div>
       <div style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ color: COLORS.blue, fontSize: 20, fontWeight: 800, margin: 0 }}>📅 Agenda</h2>
+        <h2 style={{ color: COLORS.blue, fontSize: 20, fontWeight: 800, margin: 0 }}>ðŸ“… Agenda</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={() => navigeer(-1)} style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, padding: 8, borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <ChevronLeft size={18} />
@@ -3475,14 +3477,14 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
             onClick={() => setZoekTerm('')}
             style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: COLORS.textLight, cursor: 'pointer', fontSize: 16, padding: 4 }}
           >
-            ✕
+            âœ•
           </button>
         )}
       </div>
 
       {sleepKlus && (
         <div style={{ background: '#fff8d4', border: `2px dashed ${COLORS.yellow}`, padding: 10, borderRadius: 8, marginBottom: 10, fontSize: 13, textAlign: 'center', color: COLORS.text }}>
-          Sleep <strong>{sleepKlus.adres}</strong> naar een andere dag — of <button onClick={() => setSleepKlus(null)} style={{ background: 'transparent', border: 'none', color: COLORS.blue, cursor: 'pointer', textDecoration: 'underline', fontSize: 13 }}>annuleer</button>
+          Sleep <strong>{sleepKlus.adres}</strong> naar een andere dag â€” of <button onClick={() => setSleepKlus(null)} style={{ background: 'transparent', border: 'none', color: COLORS.blue, cursor: 'pointer', textDecoration: 'underline', fontSize: 13 }}>annuleer</button>
         </div>
       )}
 
@@ -3551,8 +3553,8 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                       </div>
                       <div style={{ color: COLORS.textLight, fontSize: 13, lineHeight: 1.4 }}>
                         <strong style={{ color: COLORS.blue }}>{k.monteur || 'Monteur'}</strong>
-                        {k.oorzaak ? ` · ${k.oorzaak}` : ''}
-                        {k.opdrachtgever ? ` · ${k.opdrachtgever}` : ''}
+                        {k.oorzaak ? ` Â· ${k.oorzaak}` : ''}
+                        {k.opdrachtgever ? ` Â· ${k.opdrachtgever}` : ''}
                       </div>
                     </div>
                   );
@@ -3619,8 +3621,8 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                   {klussenVandaag.length > 0 ? (
                     <span style={{ fontSize: 13, color: COLORS.textLight }}>
                       <strong style={{ color: COLORS.text }}>{openCount} open</strong>
-                      {spoedCount > 0 && <span style={{ color: COLORS.red, fontWeight: 700 }}> · {spoedCount} spoed</span>}
-                      {afgerondCount > 0 && <span style={{ color: '#7cb342', fontWeight: 600 }}> · {afgerondCount} uitgevoerd</span>}
+                      {spoedCount > 0 && <span style={{ color: COLORS.red, fontWeight: 700 }}> Â· {spoedCount} spoed</span>}
+                      {afgerondCount > 0 && <span style={{ color: '#7cb342', fontWeight: 600 }}> Â· {afgerondCount} uitgevoerd</span>}
                     </span>
                   ) : (
                     <span style={{ fontSize: 13, color: COLORS.textLight, fontStyle: 'italic' }}>geen klussen</span>
@@ -3643,7 +3645,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                     const isNormaal = k.urgentie === 'Normaal';
                     const isAfgerond = k.statusReparatie === 'Afgerond';
                     const wordtVersleept = sleepKlus && sleepKlus.id === k.id;
-                    // Urgentie-kleur (alleen voor het randje links — verder rustig)
+                    // Urgentie-kleur (alleen voor het randje links â€” verder rustig)
                     const urgentieKleur = isAfgerond ? '#7cb342'
                       : isSpoed ? COLORS.red
                       : isHoog ? '#f57c00'
@@ -3681,15 +3683,15 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                           position: 'relative',
                         }}
                       >
-                        {/* 1. Tijd + urgentie + status (rustig, één regel) */}
+                        {/* 1. Tijd + urgentie + status (rustig, Ã©Ã©n regel) */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontSize: 12, color: COLORS.textLight, flexWrap: 'wrap' }}>
                           {tijd && <span style={{ color: COLORS.text, fontWeight: 700 }}>{tijd}</span>}
-                          {tijd && <span>·</span>}
+                          {tijd && <span>Â·</span>}
                           <span style={{ color: urgentieKleur, fontWeight: 700 }}>{urgentieLabel}</span>
-                          {isAfgerond && <span style={{ color: '#7cb342', fontWeight: 700 }}>✓</span>}
+                          {isAfgerond && <span style={{ color: '#7cb342', fontWeight: 700 }}>âœ“</span>}
                           {!isAfgerond && k.statusReparatie && (
                             <>
-                              <span>·</span>
+                              <span>Â·</span>
                               <span>{k.statusReparatie}</span>
                             </>
                           )}
@@ -3712,14 +3714,14 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                           {k.adres}{k.huisnummer ? ' ' + k.huisnummer : ''}{k.plaats ? `, ${k.plaats}` : ''}
                         </div>
 
-                        {/* 3+4+5. Monteur · Opdrachtgever · Type/Oorzaak — alles op één regel, geen emoji's */}
+                        {/* 3+4+5. Monteur Â· Opdrachtgever Â· Type/Oorzaak â€” alles op Ã©Ã©n regel, geen emoji's */}
                         <div style={{ fontSize: 13, color: COLORS.textLight, marginBottom: k.opmerking ? 6 : 0, lineHeight: 1.4 }}>
-                          <span style={{ color: COLORS.blue, fontWeight: 600 }}>{k.monteur || '—'}</span>
-                          {k.opdrachtgever && <span> · {k.opdrachtgever}</span>}
-                          {(k.typeMelding || k.oorzaak) && <span> · {[k.typeMelding, k.oorzaak].filter(Boolean).join(' / ')}</span>}
+                          <span style={{ color: COLORS.blue, fontWeight: 600 }}>{k.monteur || 'â€”'}</span>
+                          {k.opdrachtgever && <span> Â· {k.opdrachtgever}</span>}
+                          {(k.typeMelding || k.oorzaak) && <span> Â· {[k.typeMelding, k.oorzaak].filter(Boolean).join(' / ')}</span>}
                         </div>
 
-                        {/* 6. Opmerking (alleen 📝 emoji blijft) */}
+                        {/* 6. Opmerking (alleen ðŸ“ emoji blijft) */}
                         {k.opmerking && (
                           <div style={{
                             color: COLORS.text,
@@ -3736,11 +3738,11 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
                           }}>
-                            📝 {k.opmerking}
+                            ðŸ“ {k.opmerking}
                           </div>
                         )}
 
-                        {/* Compact menu: één "..." knop voor alle acties */}
+                        {/* Compact menu: Ã©Ã©n "..." knop voor alle acties */}
                         {!isAfgerond && (
                           <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end', position: 'relative' }}>
                             <button
@@ -3761,7 +3763,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                               }}
                               title="Meer acties"
                             >
-                              ⋯
+                              â‹¯
                             </button>
                             {menuOpen && (
                               <div
@@ -3784,19 +3786,19 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                                   onClick={() => { setMenuKlusId(null); rondAf(k); }}
                                   style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: '#7cb342', fontWeight: 600 }}
                                 >
-                                  ✓ Afronden
+                                  âœ“ Afronden
                                 </button>
                                 <button
                                   onClick={() => { setMenuKlusId(null); setSleepKlus(k); }}
                                   style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', borderTop: `1px solid ${COLORS.border}`, textAlign: 'left', cursor: 'pointer', fontSize: 13, color: COLORS.text }}
                                 >
-                                  ↔ Verplaatsen
+                                  â†” Verplaatsen
                                 </button>
                                 <button
                                   onClick={() => { setMenuKlusId(null); haalUitPlanning(k); }}
                                   style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', borderTop: `1px solid ${COLORS.border}`, textAlign: 'left', cursor: 'pointer', fontSize: 13, color: COLORS.textLight }}
                                 >
-                                  ✕ Uitplannen
+                                  âœ• Uitplannen
                                 </button>
                               </div>
                             )}
@@ -3827,10 +3829,10 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
       {/* Nog in te plannen overzicht */}
       <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, marginTop: 12, boxShadow: COLORS.shadowSoft }}>
         <h3 style={{ color: COLORS.blue, fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>
-          📋 Nog in te plannen ({nogInTePlannen.length})
+          ðŸ“‹ Nog in te plannen ({nogInTePlannen.length})
         </h3>
         {nogInTePlannen.length === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.textLight, margin: 0 }}>Alle klussen zijn ingepland! 🎉</p>
+          <p style={{ fontSize: 13, color: COLORS.textLight, margin: 0 }}>Alle klussen zijn ingepland! ðŸŽ‰</p>
         ) : (
           <div style={{ maxHeight: 220, overflowY: 'auto' }}>
             {nogInTePlannen.map(s => (
@@ -3851,7 +3853,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{s.adres}, {s.plaats}</div>
                   <div style={{ fontSize: 11, color: COLORS.textLight }}>
                     <span style={{ color: s.urgentie === 'Spoed' ? COLORS.red : 'inherit', fontWeight: 600 }}>{s.urgentie}</span>
-                    {s.oorzaak ? ` · ${s.oorzaak}` : ''} · {s.monteur || 'geen monteur'} · {s.opdrachtgever}
+                    {s.oorzaak ? ` Â· ${s.oorzaak}` : ''} Â· {s.monteur || 'geen monteur'} Â· {s.opdrachtgever}
                   </div>
                 </div>
               </div>
@@ -3967,7 +3969,7 @@ function MaandWeergave({ maandStart, klussenPerDag, sleepKlus, onDropOpDag, onBe
                       textDecoration: isAf ? 'line-through' : 'none',
                     }}
                   >
-                    {isAf && '✓ '}{k.adres}
+                    {isAf && 'âœ“ '}{k.adres}
                   </div>
                 );
               })}
@@ -3978,7 +3980,7 @@ function MaandWeergave({ maandStart, klussenPerDag, sleepKlus, onDropOpDag, onBe
               )}
               {(openCount > 0 || afgerondCount > 0) && klussen.length <= 3 && (
                 <div style={{ marginTop: 'auto', fontSize: 9, color: COLORS.textLight }}>
-                  {openCount > 0 && `${openCount} open`}{afgerondCount > 0 && ` · ${afgerondCount}✓`}
+                  {openCount > 0 && `${openCount} open`}{afgerondCount > 0 && ` Â· ${afgerondCount}âœ“`}
                 </div>
               )}
             </div>
@@ -4013,7 +4015,7 @@ function InplanModal({ datum, klussen, onSluit, onPlanIn, onNieuw }) {
           </button>
         </div>
 
-        <p style={{ fontSize: 14, color: COLORS.textLight, margin: '0 0 16px', textTransform: 'capitalize' }}>📅 {datumLeesbaar}</p>
+        <p style={{ fontSize: 14, color: COLORS.textLight, margin: '0 0 16px', textTransform: 'capitalize' }}>ðŸ“… {datumLeesbaar}</p>
 
         {/* Nieuwe klus aanmaken */}
         <button
@@ -4067,9 +4069,9 @@ function InplanModal({ datum, klussen, onSluit, onPlanIn, onNieuw }) {
                 <div style={{ fontWeight: 700, fontSize: 13 }}>{k.adres}, {k.plaats}</div>
                 <div style={{ fontSize: 11, color: COLORS.textLight, marginTop: 2 }}>
                   <strong>{k.urgentie}</strong>
-                  {k.oorzaak ? ` · ${k.oorzaak}` : ''}
-                  {k.monteur ? ` · ${k.monteur}` : ''}
-                  {' · '}{k.opdrachtgever}
+                  {k.oorzaak ? ` Â· ${k.oorzaak}` : ''}
+                  {k.monteur ? ` Â· ${k.monteur}` : ''}
+                  {' Â· '}{k.opdrachtgever}
                 </div>
               </div>
             ))}
@@ -4080,7 +4082,7 @@ function InplanModal({ datum, klussen, onSluit, onPlanIn, onNieuw }) {
           <>
             <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6, color: COLORS.text }}>Monteur</label>
             <select value={gekozenMonteur} onChange={e => setGekozenMonteur(e.target.value)} style={{ ...inputStyle, marginBottom: 16 }}>
-              <option value="">— Kies monteur —</option>
+              <option value="">â€” Kies monteur â€”</option>
               {MONTEURS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </>
@@ -4095,7 +4097,7 @@ function InplanModal({ datum, klussen, onSluit, onPlanIn, onNieuw }) {
             disabled={!gekozenKlus || !gekozenMonteur}
             style={{ flex: 2, padding: 12, background: (!gekozenKlus || !gekozenMonteur) ? '#ccc' : COLORS.yellow, color: COLORS.blue, border: 'none', borderRadius: 8, fontWeight: 700, cursor: (!gekozenKlus || !gekozenMonteur) ? 'not-allowed' : 'pointer' }}
           >
-            ✓ Inplannen
+            âœ“ Inplannen
           </button>
         </div>
       </div>
@@ -4127,7 +4129,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
         return tekst.includes(z);
       })
       .sort((a, b) => {
-        // Eerste sortering: open vóór afgerond
+        // Eerste sortering: open vÃ³Ã³r afgerond
         const aAf = a.statusReparatie === 'Afgerond' || a.statusStoring === 'Afgerond' || a.opgelost === 'Ja';
         const bAf = b.statusReparatie === 'Afgerond' || b.statusStoring === 'Afgerond' || b.opgelost === 'Ja';
         if (aAf !== bAf) return aAf ? 1 : -1;
@@ -4184,7 +4186,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
         />
       </div>
 
-      {/* Filter knoppen — compact op één rij met Opties uitklap */}
+      {/* Filter knoppen â€” compact op Ã©Ã©n rij met Opties uitklap */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         {[
           { id: 'alles', label: 'Alles' },
@@ -4223,11 +4225,11 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
             fontSize: 13,
           }}
         >
-          ⚙️ {opties_open ? 'Sluiten' : 'Sorteer'}
+          âš™ï¸ {opties_open ? 'Sluiten' : 'Sorteer'}
         </button>
       </div>
 
-      {/* Groepering en sortering — alleen zichtbaar bij uitklap */}
+      {/* Groepering en sortering â€” alleen zichtbaar bij uitklap */}
       {opties_open && (
         <div style={{ background: '#fafafa', border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 10, marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
@@ -4283,7 +4285,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
 
       <p style={{ color: COLORS.textLight, fontSize: 12, marginBottom: 10, marginTop: 0 }}>
         {gefilterd.length} storing{gefilterd.length !== 1 ? 'en' : ''}
-        {groepering === 'monteur' && gefilterd.length > 0 ? ` · ${groepen.length} monteur${groepen.length !== 1 ? 's' : ''}` : ''}
+        {groepering === 'monteur' && gefilterd.length > 0 ? ` Â· ${groepen.length} monteur${groepen.length !== 1 ? 's' : ''}` : ''}
       </p>
 
       {gefilterd.length === 0 && (
@@ -4310,7 +4312,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
               top: 0,
               zIndex: 5,
             }}>
-              <span>👷 {groep.naam}</span>
+              <span>ðŸ‘· {groep.naam}</span>
               <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
                 {groep.items.length}
               </span>
@@ -4342,7 +4344,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
                 {/* Bovenste rij: adres + badges + verwijder-icoon */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {isAfgerond && (
-                    <span style={{ color: '#7cb342', fontSize: 16, fontWeight: 800, lineHeight: 1, flexShrink: 0 }}>✓</span>
+                    <span style={{ color: '#7cb342', fontSize: 16, fontWeight: 800, lineHeight: 1, flexShrink: 0 }}>âœ“</span>
                   )}
                   {!isAfgerond && isSpoed && (
                     <span style={{ background: COLORS.red, color: COLORS.white, fontSize: 9, fontWeight: 700, padding: '2px 5px', borderRadius: 3, flexShrink: 0 }}>SPOED</span>
@@ -4364,12 +4366,12 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
                   </button>
                 </div>
 
-                {/* Onderste rij: datum · opdrachtgever · monteur */}
+                {/* Onderste rij: datum Â· opdrachtgever Â· monteur */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: COLORS.textLight, paddingLeft: typeAfk || isAfgerond || isSpoed ? 0 : 0 }}>
                   <span style={{ fontWeight: 600, color: COLORS.text }}>{formatDatumKort(s.datum)}</span>
                   {s.opdrachtgever && (
                     <>
-                      <span>·</span>
+                      <span>Â·</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: opdrachtKleur, flexShrink: 0 }}></span>
                         {s.opdrachtgever}
@@ -4378,8 +4380,8 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
                   )}
                   {s.monteur && (
                     <>
-                      <span>·</span>
-                      <span style={{ color: COLORS.blue, fontWeight: 600 }}>{splitMonteurs(s.monteur).monteur1}{splitMonteurs(s.monteur).monteur2 ? ' 👥' : ''}</span>
+                      <span>Â·</span>
+                      <span style={{ color: COLORS.blue, fontWeight: 600 }}>{splitMonteurs(s.monteur).monteur1}{splitMonteurs(s.monteur).monteur2 ? ' ðŸ‘¥' : ''}</span>
                     </>
                   )}
                 </div>
@@ -4398,7 +4400,7 @@ function Instellingen() {
   const [opgeslagen, setOpgeslagen] = useState(false);
   const [bezig, setBezig] = useState(false);
 
-  // BTW-percentage (21%) — om automatisch excl. uit incl. te berekenen
+  // BTW-percentage (21%) â€” om automatisch excl. uit incl. te berekenen
   const BTW = 0.21;
 
   const updateTarief = (id, veld, waarde) => {
@@ -4443,13 +4445,13 @@ function Instellingen() {
 
   return (
     <div style={{ padding: 16, maxWidth: 700, margin: '0 auto' }}>
-      <h2 style={{ color: COLORS.blue, fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>⚙️ Instellingen</h2>
+      <h2 style={{ color: COLORS.blue, fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>âš™ï¸ Instellingen</h2>
       <p style={{ color: COLORS.textLight, fontSize: 13, marginBottom: 20 }}>
         Pas de tarieven aan voor de prijsberekening bij particuliere klussen.
       </p>
 
       <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 12px' }}>💶 Tarieven (per uur)</h3>
+        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 12px' }}>ðŸ’¶ Tarieven (per uur)</h3>
 
         {tarieven.map(t => (
           <div key={t.id} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${COLORS.border}` }}>
@@ -4458,7 +4460,7 @@ function Instellingen() {
               <div style={{ flex: 1, minWidth: 140 }}>
                 <label style={{ fontSize: 11, color: COLORS.textLight, fontWeight: 600, display: 'block', marginBottom: 3 }}>Excl. BTW</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 14, color: COLORS.textLight }}>€</span>
+                  <span style={{ fontSize: 14, color: COLORS.textLight }}>â‚¬</span>
                   <input
                     type="number"
                     step="0.01"
@@ -4472,7 +4474,7 @@ function Instellingen() {
               <div style={{ flex: 1, minWidth: 140 }}>
                 <label style={{ fontSize: 11, color: COLORS.textLight, fontWeight: 600, display: 'block', marginBottom: 3 }}>Incl. BTW (21%)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 14, color: COLORS.textLight }}>€</span>
+                  <span style={{ fontSize: 14, color: COLORS.textLight }}>â‚¬</span>
                   <input
                     type="number"
                     step="0.01"
@@ -4488,7 +4490,7 @@ function Instellingen() {
         ))}
 
         <p style={{ fontSize: 11, color: COLORS.textLight, fontStyle: 'italic', margin: '8px 0' }}>
-          Tip: vul één bedrag in (excl. of incl.), de andere wordt automatisch berekend.
+          Tip: vul Ã©Ã©n bedrag in (excl. of incl.), de andere wordt automatisch berekend.
         </p>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
@@ -4497,7 +4499,7 @@ function Instellingen() {
             disabled={bezig}
             style={{ flex: 2, minWidth: 140, padding: '12px', background: COLORS.yellow, color: COLORS.blue, border: 'none', borderRadius: 8, fontWeight: 700, cursor: bezig ? 'wait' : 'pointer', fontSize: 15 }}
           >
-            {bezig ? 'Bezig...' : opgeslagen ? '✓ Opgeslagen' : '💾 Tarieven opslaan'}
+            {bezig ? 'Bezig...' : opgeslagen ? 'âœ“ Opgeslagen' : 'ðŸ’¾ Tarieven opslaan'}
           </button>
           <button
             onClick={herstelStandaard}
@@ -4509,7 +4511,7 @@ function Instellingen() {
       </div>
 
       <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>ℹ️ Informatie</h3>
+        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>â„¹ï¸ Informatie</h3>
         <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0 0 8px' }}>
           <strong>Weekendtarief</strong> wordt automatisch toegepast van vrijdag 18:00 tot maandag 06:00.
         </p>
