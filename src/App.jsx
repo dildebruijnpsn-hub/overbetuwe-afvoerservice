@@ -712,19 +712,39 @@ function Logo({ small }) {
 
   // Kleine versie in topbar
   return (
-    <img 
-      src={LOGO_DATA_URL} 
-      alt="Overbetuwe" 
-      style={{ 
-        height: small ? 'auto' : 44,
-        maxWidth: small ? 205 : 260,
-        width: '100%', 
-        display: 'block',
-        objectFit: 'contain',
-        transform: small ? 'translateY(-26%)' : 'none',
-        flexShrink: 0,
-      }} 
-    />
+    <div
+      aria-label="Overbetuwe Riool- en Afvoerservice"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 14,
+          backgroundColor: COLORS.white,
+          backgroundImage: `url(${LOGO_DATA_URL})`,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: '151px 113px',
+          backgroundPosition: '-4px -30px',
+          boxShadow: 'inset 0 0 0 1px rgba(15,45,92,0.08)',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ minWidth: 0, lineHeight: 1 }}>
+        <div style={{ color: COLORS.blue, fontSize: 17, fontWeight: 950, letterSpacing: 0, whiteSpace: 'nowrap' }}>
+          OVERBETUWE
+        </div>
+        <div style={{ color: COLORS.blueLight, fontSize: 9, fontWeight: 850, letterSpacing: 0, marginTop: 4, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          Riool- en Afvoerservice
+        </div>
+      </div>
+    </div>
   );
 }
 
