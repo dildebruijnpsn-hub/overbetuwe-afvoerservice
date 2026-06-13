@@ -671,17 +671,21 @@ export default function OverbetuweApp() {
 // =================== TOP BAR ===================
 function TopBar({ onHome }) {
   return (
-    <div style={{ background: `linear-gradient(135deg, ${COLORS.blueDark}, ${COLORS.blue})`, color: COLORS.white, padding: '10px 16px 12px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 10px 26px rgba(15,45,92,0.18)', position: 'sticky', top: 0, zIndex: 90 }}>
-      <button onClick={onHome} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-        <ArrowLeft size={20} />
-      </button>
-      <div style={{ width: 224, maxWidth: 'calc(100vw - 148px)', height: 62, borderRadius: 16, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 12px', overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.10)' }}>
-        <Logo small />
+    <div style={{ position: 'sticky', top: 0, zIndex: 90, overflow: 'hidden', background: `radial-gradient(circle at 84% -20%, rgba(30,136,229,0.32), transparent 42%), linear-gradient(135deg, #061a39 0%, ${COLORS.blueDark} 58%, #0B3D78 100%)`, color: COLORS.white, padding: '10px 14px 12px', boxShadow: '0 12px 32px rgba(15,45,92,0.20)' }}>
+      <div style={{ position: 'absolute', right: -52, top: -64, width: 190, height: 190, borderRadius: '50%', border: '24px solid rgba(30,136,229,0.12)', pointerEvents: 'none' }} />
+      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '40px minmax(0, 1fr) 40px', alignItems: 'center', gap: 10 }}>
+        <button onClick={onHome} aria-label="Terug naar home" style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+          <ArrowLeft size={20} />
+        </button>
+
+        <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', height: 48, overflow: 'hidden' }}>
+          <Logo small variant="dark" />
+        </div>
+
+        <button onClick={onHome} aria-label="Home" style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+          <Home size={19} />
+        </button>
       </div>
-      <div style={{ flex: 1 }} />
-      <button onClick={onHome} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-        <Home size={19} />
-      </button>
     </div>
   );
 }
