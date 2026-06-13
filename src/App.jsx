@@ -1,17 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight, Bell, UserCircle, ClipboardList, Camera, Siren, LayoutDashboard } from 'lucide-react';
 
 // =================== KLEURENPALET OVERBETUWE ===================
 const COLORS = {
-  blue: '#0a3d7a',     // donkerblauw
-  blueDark: '#072a55',
-  yellow: '#ffd100',   // geel
-  red: '#d62828',      // rood (alleen spoed/te laat)
-  white: '#ffffff',
-  bg: '#f5f6f8',
-  border: '#e2e6ec',
-  text: '#1a1a1a',
-  textLight: '#6b7280',
+  blue: '#0F2D5C',
+  blueDark: '#071E3F',
+  blueLight: '#1E88E5',
+  accent: '#FF8A00',
+  accentDark: '#E27600',
+  yellow: '#FF8A00',
+  red: '#D92D20',
+  green: '#12B76A',
+  white: '#FFFFFF',
+  bg: '#F5F7FA',
+  surface: '#FFFFFF',
+  surfaceBlue: '#F0F6FF',
+  border: '#E5EAF1',
+  borderStrong: '#CCD6E2',
+  text: '#182230',
+  textLight: '#667085',
+  textMuted: '#98A2B3',
+  shadow: '0 14px 36px rgba(15,45,92,0.10)',
+  shadowSoft: '0 6px 18px rgba(15,45,92,0.08)',
 };
 
 // Overbetuwe logo (base64 ingebed zodat de bon altijd werkt)
@@ -426,7 +436,7 @@ async function bewaarInstelling(id, waarde) {
 }
 
 // =================== HOOFDCOMPONENT ===================
-export default function VanDalenApp() {
+export default function OverbetuweApp() {
   const [scherm, setScherm] = useState('home');
   const [storingen, setStoringen] = useState([]);
   const [laden, setLaden] = useState(true);
@@ -548,7 +558,7 @@ export default function VanDalenApp() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: COLORS.bg, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: COLORS.text }}>
+    <div style={{ minHeight: '100vh', background: COLORS.bg, fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: COLORS.text, paddingBottom: scherm === 'nieuw' ? 0 : 76 }}>
       {scherm !== 'home' && <TopBar onHome={() => { setScherm('home'); setBewerkenStoring(null); setGekozenAdres(null); }} />}
 
       {scherm === 'home' && (
@@ -642,6 +652,18 @@ export default function VanDalenApp() {
       )}
 
       {scherm === 'instellingen' && <Instellingen />}
+
+      {scherm !== 'nieuw' && (
+        <BottomNav
+          actief={scherm}
+          gaNaar={(naar) => {
+            setBewerkenStoring(null);
+            setGekozenAdres(null);
+            setVoorIngesteldeDatum(null);
+            setScherm(naar);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -649,14 +671,16 @@ export default function VanDalenApp() {
 // =================== TOP BAR ===================
 function TopBar({ onHome }) {
   return (
-    <div style={{ background: COLORS.blue, color: COLORS.white, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-      <button onClick={onHome} style={{ background: 'transparent', border: 'none', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4 }}>
-        <ArrowLeft size={24} />
+    <div style={{ background: `linear-gradient(135deg, ${COLORS.blueDark}, ${COLORS.blue})`, color: COLORS.white, padding: '10px 16px 12px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 10px 26px rgba(15,45,92,0.18)', position: 'sticky', top: 0, zIndex: 90 }}>
+      <button onClick={onHome} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+        <ArrowLeft size={20} />
       </button>
-      <Logo small />
+      <div style={{ width: 136, height: 42, borderRadius: 14, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 8px', overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.10)' }}>
+        <Logo small />
+      </div>
       <div style={{ flex: 1 }} />
-      <button onClick={onHome} style={{ background: 'transparent', border: 'none', color: COLORS.white, cursor: 'pointer', padding: 4 }}>
-        <Home size={22} />
+      <button onClick={onHome} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+        <Home size={19} />
       </button>
     </div>
   );
@@ -692,658 +716,270 @@ function Logo({ small }) {
       src={LOGO_DATA_URL} 
       alt="Overbetuwe" 
       style={{ 
-        height: 32, 
+        height: small ? 30 : 44,
+        maxWidth: small ? 122 : 260,
         width: 'auto', 
         display: 'block',
-        borderRadius: 4,
+        objectFit: 'contain',
       }} 
     />
   );
 }
 
+function BottomNav({ actief, gaNaar }) {
+  const items = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'agenda', label: 'Agenda', icon: Calendar },
+    { id: 'alle', label: 'Storingen', icon: ClipboardList },
+    { id: 'reparaties', label: 'Reparaties', icon: Wrench },
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  ];
+  return (
+    <nav style={{
+      position: 'fixed',
+      left: 10,
+      right: 10,
+      bottom: 10,
+      zIndex: 120,
+      display: 'grid',
+      gridTemplateColumns: 'repeat(5, 1fr)',
+      gap: 4,
+      padding: '8px 8px max(8px, env(safe-area-inset-bottom))',
+      background: 'rgba(255,255,255,0.96)',
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: 22,
+      boxShadow: '0 18px 44px rgba(15,45,92,0.18)',
+      backdropFilter: 'blur(18px)',
+    }}>
+      {items.map(item => {
+        const Icon = item.icon;
+        const active = actief === item.id || (item.id === 'home' && actief === 'home');
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => gaNaar(item.id)}
+            style={{
+              minWidth: 0,
+              border: 'none',
+              borderRadius: 16,
+              padding: '8px 4px',
+              background: active ? COLORS.blue : 'transparent',
+              color: active ? COLORS.white : COLORS.textLight,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'background 160ms ease, color 160ms ease, transform 160ms ease',
+            }}
+          >
+            <Icon size={20} strokeWidth={active ? 2.6 : 2.2} />
+            <span style={{ fontSize: 10, lineHeight: 1, fontWeight: active ? 800 : 650, whiteSpace: 'nowrap' }}>{item.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 // =================== HOME SCHERM ===================
 function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter, onBewerk }) {
-  // Bereken spoed-statistieken
-  const openSpoed = storingen.filter(s => s.urgentie === 'Spoed' && s.statusReparatie !== 'Afgerond');
-  const spoedTeLaat = openSpoed.filter(s => dagenSinds(s.datum) > MAX_DAGEN.Spoed);
-  const aantalSpoed = openSpoed.length;
-  const aantalTeLaat = spoedTeLaat.length;
+  const openStoringen = storingen.filter(s => s.statusStoring !== 'Afgerond' && s.statusReparatie !== 'Afgerond');
+  const spoedOpen = openStoringen.filter(s => s.urgentie === 'Spoed');
+  const reparatiesGepland = storingen.filter(s => s.reparatieNodig === 'Ja' && s.statusReparatie !== 'Afgerond');
+  const vandaagKey = lokaleDatumSleutel(new Date());
+  const vandaagKlussen = storingen
+    .filter(s => s.geplandeDatum && String(s.geplandeDatum).slice(0, 10) === vandaagKey)
+    .sort((a, b) => String(a.geplandeDatum || '').localeCompare(String(b.geplandeDatum || '')));
+  const recenteStoringen = [...storingen]
+    .sort((a, b) => new Date(b.datum || b.aangemaakt || 0) - new Date(a.datum || a.aangemaakt || 0))
+    .slice(0, 3);
 
-  // ============ WEER VOORSPELLING (Open-Meteo, gratis, geen key) ============
-  // Locatie default: Elst/Overbetuwe. Optioneel: user-locatie via navigator.geolocation.
-  const [weer, setWeer] = useState(null); // { temp, code, plaats, uren: [{tijd, temp, code}] }
+  const [weer, setWeer] = useState(null);
   useEffect(() => {
     let geannuleerd = false;
-    async function haalWeer(lat, lon, plaats) {
+    async function haalWeer() {
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&forecast_days=1&timezone=Europe%2FAmsterdam`;
-        const resp = await fetch(url);
+        const resp = await fetch('https://api.open-meteo.com/v1/forecast?latitude=51.9192&longitude=5.8412&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&forecast_days=1&timezone=Europe%2FAmsterdam');
         if (!resp.ok) return;
         const data = await resp.json();
         if (geannuleerd) return;
-        const nuUur = new Date().getHours();
-        const uren = [];
-        if (data.hourly && data.hourly.time) {
-          // Vind 4 uren vooruit vanaf nu (om de 3 uur)
-          const stappen = [0, 3, 6, 9, 12];
-          for (const stap of stappen) {
-            const idx = nuUur + stap;
-            if (idx < data.hourly.time.length) {
-              const t = new Date(data.hourly.time[idx]);
-              uren.push({
-                tijd: t.getHours().toString().padStart(2, '0') + ':00',
-                temp: Math.round(data.hourly.temperature_2m[idx]),
-                code: data.hourly.weather_code[idx],
-              });
-            }
-          }
-        }
+        const uur = new Date().getHours();
+        const idx = Math.min(Math.max(uur, 0), (data.hourly?.time?.length || 1) - 1);
         setWeer({
-          temp: Math.round(data.current?.temperature_2m ?? 0),
-          code: data.current?.weather_code ?? 0,
-          plaats: plaats || 'Elst',
-          uren,
+          temp: Math.round(data.current?.temperature_2m ?? data.hourly?.temperature_2m?.[idx] ?? 0),
+          code: data.current?.weather_code ?? data.hourly?.weather_code?.[idx] ?? 0,
+          later: Math.round(data.hourly?.temperature_2m?.[Math.min(idx + 3, (data.hourly?.temperature_2m?.length || 1) - 1)] ?? 0),
         });
-      } catch (err) {
-        // Geen weer = niet erg, gewoon niet tonen
-        console.log('Weer ophalen mislukt:', err);
-      }
+      } catch (_) {}
     }
-    // Probeer eerst user-locatie, fallback naar Elst
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => haalWeer(pos.coords.latitude, pos.coords.longitude, null),
-        () => haalWeer(51.92, 5.84, 'Elst'),
-        { timeout: 3000, maximumAge: 600000 }
-      );
-    } else {
-      haalWeer(51.92, 5.84, 'Elst');
-    }
+    haalWeer();
     return () => { geannuleerd = true; };
   }, []);
 
-  // Helper: WMO weer code naar emoji + beschrijving
   function weerEmoji(code) {
     if (code === 0) return '☀️';
     if (code <= 2) return '🌤️';
     if (code === 3) return '☁️';
     if (code >= 45 && code <= 48) return '🌫️';
-    if (code >= 51 && code <= 67) return '🌦️';
-    if (code >= 71 && code <= 77) return '❄️';
-    if (code >= 80 && code <= 82) return '🌧️';
+    if (code >= 51 && code <= 82) return '🌧️';
     if (code >= 95) return '⛈️';
     return '☁️';
   }
-  function weerBeschrijving(code) {
-    if (code === 0) return 'Zonnig';
-    if (code === 1) return 'Vrijwel onbewolkt';
-    if (code === 2) return 'Licht bewolkt';
-    if (code === 3) return 'Bewolkt';
-    if (code >= 45 && code <= 48) return 'Mist';
-    if (code >= 51 && code <= 57) return 'Motregen';
-    if (code >= 61 && code <= 67) return 'Regen';
-    if (code >= 71 && code <= 77) return 'Sneeuw';
-    if (code >= 80 && code <= 82) return 'Buien';
-    if (code >= 95) return 'Onweer';
-    return '';
-  }
-  
-  // Mini stats: deze week
-  const weekStats = useMemo(() => {
-    const nu = new Date();
-    const weekStart = new Date(nu);
-    weekStart.setDate(nu.getDate() - nu.getDay() + (nu.getDay() === 0 ? -6 : 1)); // maandag
-    weekStart.setHours(0, 0, 0, 0);
-    
-    const dezeWeek = storingen.filter(s => {
-      if (!s.datum) return false;
-      const d = new Date(s.datum);
-      return d >= weekStart;
-    });
-    
-    const afgerond = dezeWeek.filter(s => s.statusReparatie === 'Afgerond').length;
-    const open = dezeWeek.length - afgerond;
-    const spoed = dezeWeek.filter(s => s.urgentie === 'Spoed' && s.statusReparatie !== 'Afgerond').length;
-    
-    return { totaal: dezeWeek.length, open, afgerond, spoed };
-  }, [storingen]);
-  
-  // Geluidssignaal afspelen wanneer er nieuwe spoed bij komt
-  const [vorigAantalSpoed, setVorigAantalSpoed] = useState(aantalSpoed);
-  const [vandaagUitgeklapt, setVandaagUitgeklapt] = useState(false);
-  useEffect(() => {
-    if (aantalSpoed > vorigAantalSpoed && vorigAantalSpoed > 0) {
-      // Korte bieptoon via Web Audio API
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-        osc.start(); osc.stop(ctx.currentTime + 0.5);
-      } catch (e) {}
-    }
-    setVorigAantalSpoed(aantalSpoed);
-  }, [aantalSpoed]);
 
-  // Knoppen opgesplitst in 3 niveaus van belangrijkheid
-  const hoofdActie = { id: 'nieuw', icon: Plus, label: 'Nieuwe storing' };
-  const dagelijkseKnoppen = [
-    { id: 'agenda', icon: Calendar, label: 'Agenda' },
-    { id: 'reparaties', icon: Wrench, label: 'Reparatieplanning' },
+  const uur = new Date().getHours();
+  const begroeting = uur < 12 ? 'Goedemorgen Christian' : uur < 18 ? 'Goedemiddag Christian' : 'Goedenavond Christian';
+  const datumLabel = new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const stats = [
+    { label: 'Open storingen', value: openStoringen.length, icon: ClipboardList, color: COLORS.blueLight, onClick: () => { setAlleFilter('open'); gaNaar('alle'); } },
+    { label: 'Spoedmeldingen', value: spoedOpen.length, icon: Siren, color: COLORS.red, onClick: () => { setAlleFilter('spoed'); gaNaar('alle'); } },
+    { label: 'Vandaag ingepland', value: vandaagKlussen.length, icon: Calendar, color: COLORS.blue, onClick: () => gaNaar('agenda') },
+    { label: 'Reparaties gepland', value: reparatiesGepland.length, icon: Wrench, color: COLORS.accent, onClick: () => gaNaar('reparaties') },
   ];
-  const meerKnoppen = [];
-  if (!eenvoudig) {
-    meerKnoppen.push({ id: 'alle', icon: Trash2, label: 'Alle storingen' });
-    meerKnoppen.push({ id: 'dashboard', icon: BarChart3, label: 'Dashboard' });
-    meerKnoppen.push({ id: 'instellingen', icon: Settings, label: 'Instellingen' });
-  }
 
-  // Klussen van vandaag (open + afgerond) — gebruik LOKALE datum, niet UTC
-  const klussenVandaag = useMemo(() => {
-    const vandaagSleutel = lokaleDatumSleutel(new Date());
-    return storingen
-      .filter(s => {
-        if (!s.geplandeDatum) return false;
-        // geplandeDatum kan zijn 'YYYY-MM-DD' of 'YYYY-MM-DDTHH:MM...'
-        const datumDeel = String(s.geplandeDatum).split('T')[0];
-        return datumDeel === vandaagSleutel;
-      })
-      .sort((a, b) => {
-        // 1. Afgeronde klussen onderaan
-        const aAf = a.statusReparatie === 'Afgerond';
-        const bAf = b.statusReparatie === 'Afgerond';
-        if (aAf !== bAf) return aAf ? 1 : -1;
-        // 2. Groeperen per monteur (voor compatibiliteit met bestaande structuur)
-        // Gebruik 1e monteur als sorteer-sleutel
-        const ma = splitMonteurs(a.monteur).monteur1 || 'zzz';
-        const mb = splitMonteurs(b.monteur).monteur1 || 'zzz';
-        if (ma !== mb) return ma.localeCompare(mb);
-        // 3. Binnen monteur: op tijd (vroegste eerst)
-        const tijdA = String(a.geplandeDatum).includes('T') ? String(a.geplandeDatum).split('T')[1] : '99:99';
-        const tijdB = String(b.geplandeDatum).includes('T') ? String(b.geplandeDatum).split('T')[1] : '99:99';
-        if (tijdA !== tijdB) return tijdA.localeCompare(tijdB);
-        // 4. Bij gelijke tijd: op urgentie
-        return (URGENTIE_VOLGORDE[a.urgentie] ?? 9) - (URGENTIE_VOLGORDE[b.urgentie] ?? 9);
-      });
-  }, [storingen]);
-  const openVandaag = klussenVandaag.filter(s => s.statusReparatie !== 'Afgerond').length;
-  const afgerondVandaag = klussenVandaag.length - openVandaag;
+  const quickActions = [
+    { id: 'agenda', label: 'Agenda', sub: 'Dag, week en maand', icon: Calendar },
+    { id: 'reparaties', label: 'Reparaties', sub: 'Planning uitvoeren', icon: Wrench },
+    { id: 'alle', label: 'Storingen', sub: 'Overzicht en beheer', icon: ClipboardList },
+    { id: 'dashboard', label: 'Dashboard', sub: 'Statistieken', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Rapportages', sub: 'PDF en export', icon: Camera },
+    { id: 'alle', label: 'Spoedmeldingen', sub: `${spoedOpen.length} open`, icon: Siren, filter: 'spoed' },
+  ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: COLORS.bg, paddingBottom: 70 }}>
-      <style>{`
-        @keyframes pulseAlarm {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(214,40,40,0.7); }
-          50% { box-shadow: 0 0 0 10px rgba(214,40,40,0); }
-        }
-      `}</style>
-
-      {/* DONKERBLAUWE HEADER met logo + weer (één doorlopend blok) */}
-      <div style={{ background: COLORS.blue, padding: '14px 16px 16px' }}>
-        {/* Logo bovenaan */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-          <img
-            src={LOGO_DATA_URL}
-            alt="Overbetuwe Afvoerservice"
-            style={{ width: '100%', maxWidth: 320, height: 'auto', display: 'block' }}
-          />
+    <div style={{ minHeight: '100vh', background: COLORS.bg }}>
+      <div style={{ background: `linear-gradient(145deg, ${COLORS.blueDark} 0%, ${COLORS.blue} 58%, #123C78 100%)`, color: COLORS.white, padding: '14px 16px 22px', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, boxShadow: '0 18px 44px rgba(15,45,92,0.22)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 126, height: 42, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+            <Logo small />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 19, fontWeight: 850, lineHeight: 1.1, letterSpacing: 0 }}>{begroeting}</div>
+            <div style={{ marginTop: 4, fontSize: 12, opacity: 0.76, textTransform: 'capitalize' }}>{datumLabel}</div>
+          </div>
+          <button type="button" aria-label="Notificaties" style={{ width: 38, height: 38, borderRadius: 14, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.10)', color: COLORS.white, display: 'grid', placeItems: 'center', position: 'relative' }}>
+            <Bell size={19} />
+            {spoedOpen.length > 0 && <span style={{ position: 'absolute', top: 6, right: 6, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, background: COLORS.accent, color: COLORS.white, fontSize: 10, fontWeight: 900 }}>{spoedOpen.length}</span>}
+          </button>
+          <button type="button" aria-label="Profiel" style={{ width: 38, height: 38, borderRadius: 14, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.10)', color: COLORS.white, display: 'grid', placeItems: 'center' }}>
+            <UserCircle size={21} />
+          </button>
         </div>
 
-        {/* Begroeting + weer */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ flex: 1, color: COLORS.white }}>
-            <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {(() => {
-                const uur = new Date().getHours();
-                if (uur < 12) return '☀️ Goedemorgen!';
-                if (uur < 18) return '👋 Goedemiddag!';
-                return '🌙 Goedenavond!';
-              })()}
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
-              {new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center', marginTop: 18 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, opacity: 0.72, fontWeight: 700, letterSpacing: 0.2 }}>Overbetuwe Riool- en Afvoerservice</div>
+            <div style={{ marginTop: 6, fontSize: 13, opacity: 0.78 }}>Dagstart voor planning, storingen en werkbonnen.</div>
           </div>
           {weer && (
-            <div style={{ color: COLORS.white, textAlign: 'right' }}>
-              <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 22 }}>{weerEmoji(weer.code)}</span> {weer.temp}°C
-              </div>
-              <div style={{ fontSize: 11, opacity: 0.8, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                <MapPin size={11} /> {weer.plaats}
-              </div>
+            <div style={{ minWidth: 112, borderRadius: 18, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', padding: '10px 12px', textAlign: 'right' }}>
+              <div style={{ fontSize: 20, fontWeight: 850 }}>{weerEmoji(weer.code)} {weer.temp}°C</div>
+              <div style={{ marginTop: 2, fontSize: 11, opacity: 0.76 }}>Elst · later {weer.later}°C</div>
             </div>
           )}
         </div>
-
-        {/* Uur-voorspelling */}
-        {weer && weer.uren && weer.uren.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-            {weer.uren.map((u, idx) => (
-              <div key={idx} style={{ textAlign: 'center', flex: 1, color: COLORS.white }}>
-                <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 600 }}>{u.tijd}</div>
-                <div style={{ fontSize: 22, margin: '4px 0' }}>{weerEmoji(u.code)}</div>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>{u.temp}°C</div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Overzicht is verplaatst naar Dashboard scherm (tap Dashboard in bottom-nav of via Meer) */}
+      <main style={{ padding: '16px 14px 96px', maxWidth: 860, margin: '0 auto' }}>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginTop: -4 }}>
+          {stats.map(stat => {
+            const Icon = stat.icon;
+            return (
+              <button key={stat.label} type="button" onClick={stat.onClick} style={{ textAlign: 'left', border: `1px solid ${COLORS.border}`, background: COLORS.white, borderRadius: 16, padding: 14, boxShadow: COLORS.shadowSoft, cursor: 'pointer', minHeight: 104 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 12, background: `${stat.color}14`, color: stat.color, display: 'grid', placeItems: 'center' }}><Icon size={18} /></span>
+                  <span style={{ fontSize: 24, fontWeight: 900, color: COLORS.text, lineHeight: 1 }}>{stat.value}</span>
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.textLight, fontWeight: 750 }}>{stat.label}</div>
+              </button>
+            );
+          })}
+        </section>
 
-
-      {aantalSpoed > 0 && (
-        <button
-          onClick={() => gaNaar('reparaties')}
-          style={{
-            margin: '16px 16px 0',
-            background: COLORS.red,
-            color: COLORS.white,
-            padding: '16px',
-            borderRadius: 12,
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            fontWeight: 700,
-            fontSize: 15,
-            textAlign: 'left',
-            animation: aantalTeLaat > 0 ? 'pulseAlarm 1.5s infinite' : 'none',
-          }}
-        >
-          <AlertTriangle size={28} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>
-              {aantalSpoed} open spoedklus{aantalSpoed > 1 ? 'sen' : ''}
-            </div>
-            {aantalTeLaat > 0 && (
-              <div style={{ fontSize: 13, opacity: 0.95, marginTop: 2 }}>
-                ⚠ {aantalTeLaat} te laat — direct actie nodig
-              </div>
-            )}
-          </div>
-          <span style={{ fontSize: 22 }}>›</span>
+        <button type="button" onClick={() => gaNaar('nieuw')} style={{ width: '100%', marginTop: 16, border: 'none', borderRadius: 18, padding: '18px 18px', background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDark})`, color: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 18, fontWeight: 900, boxShadow: '0 18px 34px rgba(255,138,0,0.26)', cursor: 'pointer' }}>
+          <Plus size={25} strokeWidth={3} /> Nieuwe storing
         </button>
-      )}
 
-      <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
-        {/* Vandaag-blok — altijd zichtbaar — met rood datum-kaartje (zoals mockup) */}
-        <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, marginBottom: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: klussenVandaag.length > 0 ? 12 : 0 }}>
-            {/* Rood datum-kaartje */}
-            <div style={{
-              background: COLORS.red,
-              color: COLORS.white,
-              borderRadius: 8,
-              padding: '4px 8px 6px',
-              textAlign: 'center',
-              minWidth: 48,
-              flexShrink: 0,
-              boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-            }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-                {new Date().toLocaleDateString('nl-NL', { month: 'short' }).toUpperCase().replace('.', '')}
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1, marginTop: 2 }}>
-                {new Date().getDate()}
+        <section style={{ marginTop: 18, background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, boxShadow: COLORS.shadowSoft }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 54, height: 62, borderRadius: 16, background: COLORS.blue, color: COLORS.white, display: 'grid', placeItems: 'center', boxShadow: '0 12px 24px rgba(15,45,92,0.18)' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 10, fontWeight: 850, letterSpacing: 0.8 }}>{new Date().toLocaleDateString('nl-NL', { month: 'short' }).replace('.', '').toUpperCase()}</div>
+                <div style={{ fontSize: 23, fontWeight: 900, lineHeight: 1 }}>{new Date().getDate()}</div>
               </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, color: COLORS.blue, fontSize: 16, lineHeight: 1.2 }}>
-                Vandaag — {new Date().toLocaleDateString('nl-NL', { weekday: 'long' })}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <h2 style={{ margin: 0, fontSize: 17, color: COLORS.text, fontWeight: 900 }}>Vandaag ingepland</h2>
+                <button type="button" onClick={() => gaNaar('agenda')} style={{ border: 'none', background: COLORS.surfaceBlue, color: COLORS.blue, borderRadius: 999, padding: '7px 10px', fontSize: 12, fontWeight: 800 }}>Bekijk</button>
               </div>
-              <div style={{ fontSize: 12, color: COLORS.textLight, marginTop: 2 }}>
-                {klussenVandaag.length === 0
-                  ? 'Geen klussen ingepland'
-                  : `${openVandaag} open${afgerondVandaag > 0 ? ` · ${afgerondVandaag} afgerond` : ''}`}
-              </div>
+              <div style={{ marginTop: 4, fontSize: 13, color: COLORS.textLight }}>{vandaagKlussen.length === 0 ? 'Geen klussen ingepland' : `${vandaagKlussen.length} klus${vandaagKlussen.length !== 1 ? 'sen' : ''} vandaag`}</div>
             </div>
           </div>
-          {klussenVandaag.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {(() => {
-                // Bereken volgnummer per monteur (alleen open klussen tellen mee voor nummering)
-                const teTonen = vandaagUitgeklapt ? klussenVandaag : klussenVandaag.slice(0, 5);
-                // Tel open klussen per monteur over ALLE vandaag-klussen (niet alleen zichtbaar)
-                const totaalPerMonteur = {};
-                klussenVandaag.forEach(k => {
-                  if (k.statusReparatie === 'Afgerond') return;
-                  const m = splitMonteurs(k.monteur).monteur1 || '_geen_';
-                  totaalPerMonteur[m] = (totaalPerMonteur[m] || 0) + 1;
-                });
-                // Tel positie tijdens iteratie
-                const positieTeller = {};
-                return teTonen.map(k => {
-                  const isAfgerond = k.statusReparatie === 'Afgerond';
-                  const isSpoed = k.urgentie === 'Spoed';
-                  // Volgnummer (alleen voor open klussen, niet afgeronden)
-                  // Gebruik 1e monteur als sleutel voor oude samengestelde waarden
-                  let volgNr = '';
-                  const monteurKey = splitMonteurs(k.monteur).monteur1;
-                  if (!isAfgerond && monteurKey) {
-                    positieTeller[monteurKey] = (positieTeller[monteurKey] || 0) + 1;
-                    if (totaalPerMonteur[monteurKey] > 1) {
-                      volgNr = `${positieTeller[monteurKey]}/${totaalPerMonteur[monteurKey]}`;
-                    }
-                  }
-                  return (
-                  <div
-                    key={k.id}
-                    onClick={() => gaNaar('agenda')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 10px',
-                      background: isAfgerond ? '#f0f8f0' : (isSpoed ? '#fff0f0' : COLORS.bg),
-                      borderLeft: `3px solid ${isAfgerond ? '#7cb342' : (isSpoed ? COLORS.red : COLORS.blue)}`,
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      opacity: isAfgerond ? 0.7 : 1,
-                    }}
-                  >
-                    {/* Vinkje (afgerond) of SPOED badge */}
-                    {isAfgerond && (
-                      <span style={{ color: '#7cb342', fontSize: 18, fontWeight: 800, lineHeight: 1 }}>✓</span>
-                    )}
-                    {!isAfgerond && isSpoed && (
-                      <span style={{ background: COLORS.red, color: COLORS.white, fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 3 }}>SPOED</span>
-                    )}
-                    {/* Volgnummer (alleen bij open klussen met meerdere klussen voor dezelfde monteur) */}
-                    {volgNr && (
-                      <span style={{ fontSize: 11, color: COLORS.textLight, fontWeight: 700, background: COLORS.white, padding: '2px 6px', borderRadius: 3, border: `1px solid ${COLORS.border}`, flexShrink: 0 }}>
-                        {volgNr}
-                      </span>
-                    )}
-                    {/* Type-letter badge (V, L, C, Ri, Ra, P, Rc, Ru) */}
-                    {k.typeMelding && TYPE_AFKORTING[k.typeMelding] && (
-                      <span
-                        title={k.typeMelding}
-                        style={{
-                          fontSize: 10,
-                          color: COLORS.blue,
-                          fontWeight: 800,
-                          background: '#e8f0fc',
-                          padding: '2px 5px',
-                          borderRadius: 3,
-                          flexShrink: 0,
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {TYPE_AFKORTING[k.typeMelding]}
-                      </span>
-                    )}
-                    {/* Adres */}
-                    <div style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: 15,
-                      fontWeight: 600,
-                      color: COLORS.text,
-                      textDecoration: isAfgerond ? 'line-through' : 'none',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {k.adres}, {k.plaats}
-                    </div>
-                    {/* Maps-knopje — opent Google Maps met dit adres */}
-                    {k.adres && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // voorkom dat hele rij wordt aangeklikt
-                          const adresVoorMaps = encodeURIComponent(`${k.adres}, ${k.plaats || ''}`.trim());
-                          window.open(`https://www.google.com/maps/dir/?api=1&destination=${adresVoorMaps}`, '_blank');
-                        }}
-                        title="Open route in Google Maps"
-                        style={{
-                          background: COLORS.white,
-                          border: `1px solid ${COLORS.border}`,
-                          borderRadius: 6,
-                          padding: '4px 6px',
-                          cursor: 'pointer',
-                          fontSize: 14,
-                          lineHeight: 1,
-                          flexShrink: 0,
-                        }}
-                      >
-                        🗺️
-                      </button>
-                    )}
-                    {/* Monteur rechts (toont alleen 1e naam, met 👥 icoon als er 2e is) */}
-                    <div style={{ fontSize: 12, color: COLORS.blue, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {(() => {
-                        const ms = splitMonteurs(k.monteur);
-                        return (
-                          <>
-                            <span>{ms.monteur1}</span>
-                            {ms.monteur2 && (
-                              <span style={{ fontSize: 13, lineHeight: 1 }} title={`Ook: ${ms.monteur2}`}>👥</span>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                );
-                });
-              })()}
-              {klussenVandaag.length > 5 && (
-                <button
-                  onClick={() => setVandaagUitgeklapt(v => !v)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    width: '100%',
-                    padding: '8px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    color: COLORS.blue,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginTop: 4,
-                  }}
-                >
-                  {vandaagUitgeklapt ? (
-                    <>▲ Minder tonen</>
-                  ) : (
-                    <>▼ Toon alle {klussenVandaag.length} klussen ({klussenVandaag.length - 5} meer)</>
-                  )}
+          {vandaagKlussen.length > 0 && (
+            <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+              {vandaagKlussen.slice(0, 3).map(k => (
+                <button key={k.id} type="button" onClick={() => onBewerk(k)} style={{ width: '100%', textAlign: 'left', border: `1px solid ${COLORS.border}`, background: k.urgentie === 'Spoed' ? '#FFF4F2' : COLORS.bg, borderRadius: 14, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <span style={{ width: 8, alignSelf: 'stretch', borderRadius: 999, background: k.urgentie === 'Spoed' ? COLORS.red : COLORS.blueLight }} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 13, color: COLORS.text, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.adres}{k.plaats ? `, ${k.plaats}` : ''}</span>
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: COLORS.textLight }}>{String(k.geplandeDatum || '').includes('T') ? String(k.geplandeDatum).split('T')[1].slice(0, 5) : 'Tijd n.t.b.'} · {k.monteur || 'Monteur'} · {k.statusReparatie || 'Ingepland'}</span>
+                  </span>
                 </button>
-              )}
+              ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* 1. HOOFDACTIE: Nieuwe storing - groot en prominent */}
-        <button
-          onClick={() => gaNaar(hoofdActie.id)}
-          style={{
-            background: COLORS.yellow,
-            color: COLORS.blue,
-            border: 'none',
-            borderRadius: 16,
-            padding: '24px 20px',
-            fontSize: 20,
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 14,
-            cursor: 'pointer',
-            boxShadow: '0 4px 0 rgba(0,0,0,0.15), 0 8px 20px rgba(255,200,0,0.25)',
-          }}
-        >
-          <Plus size={30} strokeWidth={3} />
-          {hoofdActie.label}
-        </button>
+        <section style={{ marginTop: 20 }}>
+          <h2 style={{ margin: '0 0 10px', fontSize: 16, color: COLORS.text, fontWeight: 900 }}>Snel naar</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+            {quickActions.map(action => {
+              const Icon = action.icon;
+              return (
+                <button key={`${action.label}-${action.id}`} type="button" onClick={() => { if (action.filter) setAlleFilter(action.filter); gaNaar(action.id); }} style={{ border: `1px solid ${COLORS.border}`, background: COLORS.white, color: COLORS.text, borderRadius: 16, padding: 14, minHeight: 98, textAlign: 'left', boxShadow: COLORS.shadowSoft, cursor: 'pointer' }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 13, background: action.label === 'Spoedmeldingen' ? '#FFF4F2' : COLORS.surfaceBlue, color: action.label === 'Spoedmeldingen' ? COLORS.red : COLORS.blue, display: 'grid', placeItems: 'center', marginBottom: 12 }}><Icon size={19} /></span>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 900, color: COLORS.text }}>{action.label}</span>
+                  <span style={{ display: 'block', marginTop: 3, fontSize: 11, color: COLORS.textLight, fontWeight: 650 }}>{action.sub}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-        {/* 2. DAGELIJKSE KNOPPEN: Agenda + Reparatieplanning - horizontale tegels met cirkel-icoon + pijltje */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          {dagelijkseKnoppen.map(k => {
-            const Icon = k.icon;
-            const ondertitel = k.id === 'agenda' ? 'Bekijk je planning' : 'Plan reparaties in';
-            return (
-              <button
-                key={k.id}
-                onClick={() => gaNaar(k.id)}
-                style={{
-                  background: COLORS.blue,
-                  color: COLORS.white,
-                  border: 'none',
-                  borderRadius: 14,
-                  padding: '14px 12px',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  cursor: 'pointer',
-                  boxShadow: '0 3px 0 rgba(0,0,0,0.12), 0 6px 14px rgba(0,0,0,0.08)',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <Icon size={20} strokeWidth={2.2} color={COLORS.white} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.1 }}>{k.label}</div>
-                  <div style={{ fontSize: 10, fontWeight: 500, opacity: 0.75, marginTop: 2 }}>{ondertitel}</div>
-                </div>
-                <span style={{ fontSize: 18, opacity: 0.8, flexShrink: 0 }}>›</span>
-              </button>
-            );
-          })}
-        </div>
+        <section style={{ marginTop: 20, background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 16, boxShadow: COLORS.shadowSoft }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Recente storingen</h2>
+            <button type="button" onClick={() => gaNaar('alle')} style={{ border: 'none', background: 'transparent', color: COLORS.blueLight, fontSize: 12, fontWeight: 850 }}>Bekijk alles</button>
+          </div>
+          {recenteStoringen.length === 0 ? (
+            <div style={{ padding: 18, background: COLORS.bg, borderRadius: 14, color: COLORS.textLight, fontSize: 13 }}>Nog geen storingen vandaag.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {recenteStoringen.map(s => (
+                <button key={s.id} type="button" onClick={() => onBewerk(s)} style={{ width: '100%', border: `1px solid ${COLORS.border}`, background: COLORS.white, borderRadius: 14, padding: 12, textAlign: 'left', display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 999, background: s.urgentie === 'Spoed' ? COLORS.red : COLORS.blueLight, flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 13, color: COLORS.text, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.adres || 'Adres onbekend'}{s.plaats ? `, ${s.plaats}` : ''}</span>
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: COLORS.textLight }}>{s.typeMelding || 'Storing'} · {s.urgentie || 'Normaal'}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
 
-        {/* 3. DIRECTE RIJEN: Adres / Alle storingen / Dashboard / Instellingen (mockup-style) */}
-        <div style={{ background: COLORS.white, borderRadius: 14, border: `1px solid ${COLORS.border}`, marginTop: 4, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          {meerKnoppen.map((k, idx) => {
-            const Icon = k.icon;
-            return (
-              <button
-                key={k.id}
-                onClick={() => gaNaar(k.id)}
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  borderTop: idx === 0 ? 'none' : `1px solid ${COLORS.border}`,
-                  padding: '12px 14px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  textAlign: 'left',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <div style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: '50%',
-                  background: '#e8f0fc',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <Icon size={17} color={COLORS.blue} strokeWidth={2.2} />
-                </div>
-                <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: COLORS.text }}>{k.label}</span>
-                <span style={{ fontSize: 18, color: COLORS.textLight, flexShrink: 0 }}>›</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ padding: '12px 20px 16px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: COLORS.textLight, cursor: 'pointer' }}>
+        <label style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 9, fontSize: 12, color: COLORS.textLight, cursor: 'pointer', padding: '0 4px' }}>
           <input type="checkbox" checked={eenvoudig} onChange={e => setEenvoudig(e.target.checked)} style={{ width: 16, height: 16, accentColor: COLORS.blue }} />
-          Eenvoudige weergave (zonder dashboard)
+          Eenvoudige weergave zonder dashboard
         </label>
-      </div>
-
-      {/* Bottom Navigation Balk — als een echte app */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: COLORS.white,
-        borderTop: `1px solid ${COLORS.border}`,
-        display: 'flex',
-        justifyContent: 'space-around',
-        alignItems: 'center',
-        padding: '8px 0 max(8px, env(safe-area-inset-bottom))',
-        zIndex: 100,
-        boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
-      }}>
-        <button
-          type="button"
-          onClick={() => {/* Al thuis */}}
-          style={{ flex: 1, background: 'transparent', border: 'none', padding: '6px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: COLORS.blue }}
-        >
-          <Home size={22} color={COLORS.blue} />
-          <span style={{ fontSize: 10, fontWeight: 700 }}>Home</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => gaNaar('agenda')}
-          style={{ flex: 1, background: 'transparent', border: 'none', padding: '6px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: COLORS.textLight }}
-        >
-          <Calendar size={22} color={COLORS.textLight} />
-          <span style={{ fontSize: 10, fontWeight: 600 }}>Agenda</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => gaNaar('reparaties')}
-          style={{ flex: 1, background: 'transparent', border: 'none', padding: '6px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: COLORS.textLight }}
-        >
-          <Wrench size={22} color={COLORS.textLight} />
-          <span style={{ fontSize: 10, fontWeight: 600 }}>Reparatie</span>
-        </button>
-        {!eenvoudig && (
-          <button
-            type="button"
-            onClick={() => gaNaar('dashboard')}
-            style={{ flex: 1, background: 'transparent', border: 'none', padding: '6px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: COLORS.textLight }}
-          >
-            <BarChart3 size={22} color={COLORS.textLight} />
-            <span style={{ fontSize: 10, fontWeight: 600 }}>Dashboard</span>
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => gaNaar('alle')}
-          style={{ flex: 1, background: 'transparent', border: 'none', padding: '6px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: COLORS.textLight }}
-        >
-          <Search size={22} color={COLORS.textLight} />
-          <span style={{ fontSize: 10, fontWeight: 600 }}>Storingen</span>
-        </button>
-      </div>
+      </main>
     </div>
   );
 }
-
 // =================== STORING FORMULIER ===================
 function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, alleStoringen, onOpslaan, onAnnuleer, onPlanHerhaling }) {
   // Huidige datum + tijd in lokale tijd (voor datetime-local input)
@@ -3363,6 +2999,7 @@ function DashboardStoringenBeheer({ storingen, onBewerk, onVerwijder }) {
       .filter(s => {
         const isAfgerond = s.statusReparatie === 'Afgerond' || s.statusStoring === 'Afgerond' || s.opgelost === 'Ja';
         if (filter === 'open' && isAfgerond) return false;
+        if (filter === 'spoed' && (isAfgerond || s.urgentie !== 'Spoed')) return false;
         if (filter === 'afgerond' && !isAfgerond) return false;
         if (!z) return true;
         const tekst = [s.adres, s.plaats, s.postcode, s.opdrachtgever, s.monteur, s.oorzaak, s.typeMelding, s.opmerking]
@@ -3411,6 +3048,7 @@ function DashboardStoringenBeheer({ storingen, onBewerk, onVerwijder }) {
         {[
           { id: 'alles', label: 'Alles' },
           { id: 'open', label: 'Open' },
+          { id: 'spoed', label: 'Spoed' },
           { id: 'afgerond', label: 'Afgerond' },
         ].map(f => (
           <button
@@ -3556,7 +3194,10 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
   const [filterMonteur, setFilterMonteur] = useState('Alle');
   const [toonInplanModal, setToonInplanModal] = useState(null); // { datum: 'YYYY-MM-DD' } of null
   const [zoekTerm, setZoekTerm] = useState('');
-  const [weergave, setWeergave] = useState('week'); // 'week' of 'maand'
+  const [weergave, setWeergave] = useState('week'); // 'dag', 'week' of 'maand'
+  const [dagStart, setDagStart] = useState(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+  });
   const [maandStart, setMaandStart] = useState(() => {
     const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d;
   });
@@ -3628,7 +3269,11 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
   }, [storingen]);
 
   const navigeer = (richting) => {
-    if (weergave === 'week') {
+    if (weergave === 'dag') {
+      const nieuw = new Date(dagStart);
+      nieuw.setDate(nieuw.getDate() + richting);
+      setDagStart(nieuw);
+    } else if (weergave === 'week') {
       const nieuw = new Date(weekStart);
       nieuw.setDate(nieuw.getDate() + richting * 7);
       setWeekStart(nieuw);
@@ -3640,7 +3285,10 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
   };
 
   const gaNaarVandaag = () => {
-    if (weergave === 'week') {
+    if (weergave === 'dag') {
+      const d = new Date(); d.setHours(0, 0, 0, 0);
+      setDagStart(d);
+    } else if (weergave === 'week') {
       setWeekStart(beginVanWeek(new Date()));
     } else {
       const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0);
@@ -3681,10 +3329,85 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
 
   const weekLabel = `${dagen[0].toLocaleDateString('nl-NL', { day: '2-digit', month: 'short' })} - ${dagen[6].toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}`;
   const maandLabel = maandStart.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+  const dagLabel = dagStart.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div style={{ padding: 12, maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ padding: '14px 14px 96px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, marginBottom: 14, boxShadow: COLORS.shadowSoft }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 14, background: COLORS.surfaceBlue, color: COLORS.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Calendar size={20} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ color: COLORS.text, fontSize: 21, fontWeight: 850, margin: 0 }}>Agenda</h2>
+              <div style={{ color: COLORS.textLight, fontSize: 13, fontWeight: 600, textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {weergave === 'dag' ? dagLabel : weergave === 'week' ? weekLabel : maandLabel}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={() => navigeer(-1)} style={{ width: 40, height: 40, background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.blue }}>
+              <ChevronLeft size={18} />
+            </button>
+            <button onClick={gaNaarVandaag} style={{ background: COLORS.blue, color: COLORS.white, border: 'none', padding: '11px 14px', borderRadius: 12, cursor: 'pointer', fontWeight: 800, fontSize: 13 }}>
+              Vandaag
+            </button>
+            <button onClick={() => navigeer(1)} style={{ width: 40, height: 40, background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.blue }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, padding: 4, background: COLORS.bg, borderRadius: 14, marginBottom: 12 }}>
+          {['dag', 'week', 'maand'].map(type => (
+            <button
+              key={type}
+              onClick={() => setWeergave(type)}
+              style={{
+                padding: '10px 8px',
+                background: weergave === type ? COLORS.blue : 'transparent',
+                color: weergave === type ? COLORS.white : COLORS.textLight,
+                border: 'none',
+                borderRadius: 11,
+                fontWeight: 800,
+                cursor: 'pointer',
+                fontSize: 13,
+                textTransform: 'capitalize',
+                boxShadow: weergave === type ? '0 8px 18px rgba(15,45,92,0.20)' : 'none',
+              }}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} color={COLORS.textLight} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              type="text"
+              placeholder="Zoek op adres, plaats, zaak..."
+              value={zoekTerm}
+              onChange={e => setZoekTerm(e.target.value)}
+              style={{ width: '100%', padding: '11px 34px 11px 38px', border: `1px solid ${COLORS.border}`, borderRadius: 13, fontSize: 14, background: COLORS.white, color: COLORS.text, boxSizing: 'border-box', outline: 'none' }}
+            />
+            {zoekTerm && (
+              <button
+                onClick={() => setZoekTerm('')}
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: COLORS.textLight, cursor: 'pointer', fontSize: 16, padding: 4 }}
+              >
+                x
+              </button>
+            )}
+          </div>
+          <select value={filterMonteur} onChange={e => setFilterMonteur(e.target.value)} style={{ ...inputStyle, width: 138, padding: '10px 12px', borderRadius: 13, fontWeight: 700 }}>
+            <option value="Alle">Alle monteurs</option>
+            {MONTEURS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <h2 style={{ color: COLORS.blue, fontSize: 20, fontWeight: 800, margin: 0 }}>📅 Agenda</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={() => navigeer(-1)} style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, padding: 8, borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
@@ -3700,7 +3423,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
       </div>
 
       {/* Week / Maand toggle */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+      <div style={{ display: 'none', gap: 6, marginBottom: 10 }}>
         <button
           onClick={() => setWeergave('week')}
           style={{
@@ -3727,7 +3450,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+      <div style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, textTransform: 'capitalize' }}>
           {weergave === 'week' ? weekLabel : maandLabel}
         </div>
@@ -3738,7 +3461,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
       </div>
 
       {/* Zoekbalk */}
-      <div style={{ position: 'relative', marginBottom: 12 }}>
+      <div style={{ position: 'relative', marginBottom: 12, display: 'none' }}>
         <Search size={16} color={COLORS.textLight} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
@@ -3763,6 +3486,83 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
         </div>
       )}
 
+      {weergave === 'dag' && (() => {
+        const datumSleutel = lokaleDatumSleutel(dagStart);
+        const klussenVandaag = klussenPerDag[datumSleutel] || [];
+        const openCount = klussenVandaag.filter(k => k.statusReparatie !== 'Afgerond').length;
+        const spoedCount = klussenVandaag.filter(k => k.urgentie === 'Spoed' && k.statusReparatie !== 'Afgerond').length;
+        return (
+          <div
+            onDragOver={(e) => { if (sleepKlus) e.preventDefault(); }}
+            onDrop={(e) => { e.preventDefault(); dropOpDag(datumSleutel); }}
+            style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, boxShadow: COLORS.shadowSoft, marginBottom: 16 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+              <div>
+                <div style={{ color: COLORS.textLight, fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>Dagplanning</div>
+                <div style={{ color: COLORS.text, fontSize: 18, fontWeight: 850, textTransform: 'capitalize' }}>{dagLabel}</div>
+              </div>
+              <button onClick={() => setToonInplanModal({ datum: datumSleutel })} style={{ background: COLORS.accent, color: COLORS.white, border: 'none', borderRadius: 13, padding: '11px 14px', fontWeight: 850, cursor: 'pointer', boxShadow: '0 12px 24px rgba(255,138,0,0.25)' }}>
+                + Inplannen
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+              {[
+                ['Klussen', klussenVandaag.length],
+                ['Open', openCount],
+                ['Spoed', spoedCount],
+              ].map(([label, waarde]) => (
+                <div key={label} style={{ background: COLORS.bg, borderRadius: 14, padding: 10, textAlign: 'center' }}>
+                  <div style={{ color: label === 'Spoed' && waarde > 0 ? COLORS.red : COLORS.blue, fontSize: 20, fontWeight: 900 }}>{waarde}</div>
+                  <div style={{ color: COLORS.textLight, fontSize: 11, fontWeight: 800 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            {klussenVandaag.length === 0 ? (
+              <div style={{ border: `1px dashed ${COLORS.borderStrong}`, background: COLORS.bg, borderRadius: 16, padding: 18, color: COLORS.textLight, fontSize: 14, fontWeight: 650, textAlign: 'center' }}>
+                Geen klussen ingepland voor deze dag
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {klussenVandaag.map(k => {
+                  const isAfgerond = k.statusReparatie === 'Afgerond';
+                  const isSpoed = k.urgentie === 'Spoed';
+                  const gepl = String(k.geplandeDatum || '');
+                  const tijd = gepl.includes('T') ? gepl.split('T')[1].slice(0, 5) : 'Tijd volgt';
+                  const statusKleur = isAfgerond ? COLORS.green : isSpoed ? COLORS.red : COLORS.blueLight;
+                  return (
+                    <div
+                      key={k.id}
+                      onClick={() => onBewerk(k)}
+                      draggable={!isAfgerond}
+                      onDragStart={(e) => { setSleepKlus(k); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragEnd={() => setSleepKlus(null)}
+                      style={{ border: `1px solid ${COLORS.border}`, borderLeft: `5px solid ${statusKleur}`, borderRadius: 16, padding: 13, background: isAfgerond ? '#F0FDF4' : COLORS.white, cursor: 'pointer', boxShadow: '0 8px 18px rgba(15,45,92,0.06)' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                        <div style={{ color: COLORS.blue, fontSize: 13, fontWeight: 900 }}>{tijd}</div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {isSpoed && <span style={{ background: '#FEF3F2', color: COLORS.red, borderRadius: 999, padding: '4px 8px', fontSize: 11, fontWeight: 900 }}>Spoed</span>}
+                          <span style={{ background: COLORS.bg, color: COLORS.textLight, borderRadius: 999, padding: '4px 8px', fontSize: 11, fontWeight: 800 }}>{k.statusReparatie || 'Open'}</span>
+                        </div>
+                      </div>
+                      <div style={{ color: COLORS.text, fontSize: 16, fontWeight: 850, lineHeight: 1.25, marginBottom: 5 }}>
+                        {k.adres}{k.huisnummer ? ' ' + k.huisnummer : ''}{k.plaats ? `, ${k.plaats}` : ''}
+                      </div>
+                      <div style={{ color: COLORS.textLight, fontSize: 13, lineHeight: 1.4 }}>
+                        <strong style={{ color: COLORS.blue }}>{k.monteur || 'Monteur'}</strong>
+                        {k.oorzaak ? ` · ${k.oorzaak}` : ''}
+                        {k.opdrachtgever ? ` · ${k.opdrachtgever}` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {weergave === 'week' && (
       /* Weekoverzicht: dagen onder elkaar voor goede leesbaarheid */
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
@@ -3784,8 +3584,9 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
               style={{
                 background: COLORS.white,
                 border: `${sleepKlus ? '2px dashed ' + COLORS.yellow : '1px solid ' + (isVandaag ? COLORS.blue : COLORS.border)}`,
-                borderLeft: `5px solid ${isVandaag ? COLORS.blue : (isWeekend ? COLORS.yellow : COLORS.border)}`,
-                borderRadius: 10,
+                borderLeft: `5px solid ${isVandaag ? COLORS.blue : (isWeekend ? COLORS.accent : COLORS.border)}`,
+                borderRadius: 16,
+                boxShadow: COLORS.shadowSoft,
                 overflow: 'hidden',
                 cursor: sleepKlus ? 'pointer' : 'default',
               }}
@@ -3826,7 +3627,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                   )}
                   <button
                     onClick={() => setToonInplanModal({ datum: datumSleutel })}
-                    style={{ padding: '6px 12px', background: COLORS.yellow, color: COLORS.blue, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                    style={{ padding: '8px 12px', background: COLORS.accent, color: COLORS.white, border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}
                   >
                     + Inplannen
                   </button>
@@ -4024,7 +3825,7 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
       )}
 
       {/* Nog in te plannen overzicht */}
-      <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14, marginTop: 12 }}>
+      <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, marginTop: 12, boxShadow: COLORS.shadowSoft }}>
         <h3 style={{ color: COLORS.blue, fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>
           📋 Nog in te plannen ({nogInTePlannen.length})
         </h3>
@@ -4317,6 +4118,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
         // Filter op status
         const isAfgerond = s.statusReparatie === 'Afgerond' || s.statusStoring === 'Afgerond' || s.opgelost === 'Ja';
         if (filter === 'open' && isAfgerond) return false;
+        if (filter === 'spoed' && (isAfgerond || s.urgentie !== 'Spoed')) return false;
         if (filter === 'afgerond' && !isAfgerond) return false;
         // Filter op zoekterm
         if (!z) return true;
@@ -4387,6 +4189,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
         {[
           { id: 'alles', label: 'Alles' },
           { id: 'open', label: 'Open' },
+          { id: 'spoed', label: 'Spoed' },
           { id: 'afgerond', label: 'Afgerond' },
         ].map(f => (
           <button
@@ -4720,8 +4523,3 @@ function Instellingen() {
     </div>
   );
 }
-
-
-
-
-
