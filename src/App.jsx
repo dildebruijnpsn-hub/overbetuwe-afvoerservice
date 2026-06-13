@@ -675,7 +675,7 @@ function TopBar({ onHome }) {
       <button onClick={onHome} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
         <ArrowLeft size={20} />
       </button>
-      <div style={{ width: 198, maxWidth: 'calc(100vw - 148px)', height: 48, borderRadius: 15, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px 10px', overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.10)' }}>
+      <div style={{ width: 224, maxWidth: 'calc(100vw - 148px)', height: 62, borderRadius: 16, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 12px', overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.10)' }}>
         <Logo small />
       </div>
       <div style={{ flex: 1 }} />
@@ -717,7 +717,7 @@ function Logo({ small }) {
       alt="Overbetuwe" 
       style={{ 
         height: small ? 'auto' : 44,
-        maxWidth: small ? 220 : 260,
+        maxWidth: small ? 205 : 260,
         width: '100%', 
         display: 'block',
         objectFit: 'contain',
@@ -855,7 +855,7 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
     <div style={{ minHeight: '100vh', background: COLORS.bg }}>
       <div style={{ background: `linear-gradient(145deg, ${COLORS.blueDark} 0%, ${COLORS.blue} 58%, #123C78 100%)`, color: COLORS.white, padding: '14px 16px 22px', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, boxShadow: '0 18px 44px rgba(15,45,92,0.22)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 232, maxWidth: 'calc(100vw - 132px)', height: 58, borderRadius: 18, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 12px', overflow: 'hidden', boxShadow: '0 14px 28px rgba(0,0,0,0.16)' }}>
+          <div style={{ width: 250, maxWidth: 'calc(100vw - 132px)', height: 62, borderRadius: 18, background: COLORS.white, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 12px', overflow: 'hidden', boxShadow: '0 14px 28px rgba(0,0,0,0.16)' }}>
             <Logo small />
           </div>
           <div style={{ flex: 1 }} />
