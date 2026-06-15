@@ -424,6 +424,8 @@ function naarDb(s) {
     opmerkingVoorDb = combineerOpmerkingEnBon(s.opmerking || '', bonData) || null;
   }
   return {
+    id: s.id,
+    aangemaakt: s.aangemaakt,
     datum: s.datum,
     monteur: s.monteur,
     opdrachtgever: s.opdrachtgever,
@@ -435,17 +437,44 @@ function naarDb(s) {
     opgelost: s.opgelost || null,
     reparatie_nodig: s.reparatieNodig || null,
     urgentie: s.urgentie || 'Normaal',
-    // uitvoering: s.uitvoering || null,           // TIJDELIJK UIT - cache-issue Supabase
+    uitvoering: s.uitvoering || null,
     status_storing: s.statusStoring || 'Nieuw',
     status_reparatie: s.statusReparatie || 'Te plannen',
     geplande_datum: s.geplandeDatum || null,
     opmerking: opmerkingVoorDb,
     historie: s.historie || [],
-    // prijsregels: s.prijsregels || [],           // TIJDELIJK UIT - cache-issue Supabase
+    prijsregels: normaliseerPrijsregels(s.prijsregels),
   };
 }
 
 // =================== STORAGE HELPERS ===================
+async function apiJson(path, opties = {}) {
+  if (typeof fetch !== 'function') return null;
+  if (window.__overbetuweApiUitgeschakeld) return null;
+  const response = await fetch(path, {
+    ...opties,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(opties.headers || {}),
+    },
+  });
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (e) {
+    data = null;
+  }
+  if (response.status === 501) {
+    window.__overbetuweApiUitgeschakeld = true;
+    console.warn('Gedeelde opslag is nog niet geconfigureerd; lokale opslag wordt gebruikt.');
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(data?.error || `Serverfout ${response.status}`);
+  }
+  return data;
+}
+
 function leesJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -461,18 +490,30 @@ function schrijfJson(key, value) {
 }
 
 async function laadStoringen() {
+  const api = await apiJson('/api/storingen').catch(e => {
+    console.warn('Gedeelde opslag kon niet gelezen worden:', e);
+    return null;
+  });
+  if (api && Array.isArray(api.storingen)) {
+    return api.storingen.map(vanDb);
+  }
   const lijst = leesJson(STORAGE_KEYS.storingen, []);
   return Array.isArray(lijst) ? lijst.map(s => ({ ...s, prijsregels: normaliseerPrijsregels(s.prijsregels) })) : [];
 }
 
 async function voegStoringToe(storing) {
-  const lijst = await laadStoringen();
   const nieuw = {
     ...storing,
     prijsregels: normaliseerPrijsregels(storing.prijsregels),
     id: storing.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     aangemaakt: storing.aangemaakt || new Date().toISOString(),
   };
+  const api = await apiJson('/api/storingen', {
+    method: 'POST',
+    body: JSON.stringify(naarDb(nieuw)),
+  });
+  if (api?.storing) return vanDb(api.storing);
+  const lijst = await laadStoringen();
   const bijgewerkt = [nieuw, ...lijst];
   schrijfJson(STORAGE_KEYS.storingen, bijgewerkt);
   return nieuw;
@@ -482,12 +523,19 @@ async function werkStoringBij(id, storing) {
   const lijst = await laadStoringen();
   const bestaand = lijst.find(s => s.id === id) || {};
   const bijgewerktItem = { ...bestaand, ...storing, id, prijsregels: normaliseerPrijsregels(storing.prijsregels ?? bestaand.prijsregels) };
+  const api = await apiJson(`/api/storingen?id=${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(naarDb(bijgewerktItem)),
+  });
+  if (api?.storing) return vanDb(api.storing);
   const bijgewerkt = lijst.map(s => s.id === id ? bijgewerktItem : s);
   schrijfJson(STORAGE_KEYS.storingen, bijgewerkt);
   return bijgewerktItem;
 }
 
 async function verwijderStoringDb(id) {
+  const api = await apiJson(`/api/storingen?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (api?.ok) return;
   const lijst = await laadStoringen();
   schrijfJson(STORAGE_KEYS.storingen, lijst.filter(s => s.id !== id));
 }
