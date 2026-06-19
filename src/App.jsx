@@ -194,6 +194,7 @@ const SUPABASE_TABLE = 'storingen';
 const STORAGE_KEYS = {
   storingen: 'overbetuwe_riool_storingen_v1',
   instellingen: 'overbetuwe_riool_instellingen_v1',
+  migrated: 'overbetuwe_riool_migrated_to_supabase_v1',
 };
 
 // =================== DATUM HELPERS (LOKALE TIJD) ===================
@@ -435,7 +436,8 @@ async function laadStoringen() {
     const rijen = await supabaseRequest(`${SUPABASE_TABLE}?select=*&order=aangemaakt.desc`);
     const remote = Array.isArray(rijen) ? rijen.map(vanDb) : [];
 
-    if (remote.length === 0 && lokaal.length > 0) {
+    const alGemigreerd = localStorage.getItem(STORAGE_KEYS.migrated) === 'true';
+    if (remote.length === 0 && lokaal.length > 0 && !alGemigreerd) {
       const gemigreerd = [];
       for (const item of lokaal) {
         const id = item.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -448,10 +450,12 @@ async function laadStoringen() {
         });
         gemigreerd.push(vanDb(rows[0]));
       }
+      localStorage.setItem(STORAGE_KEYS.migrated, 'true');
       schrijfJson(STORAGE_KEYS.storingen, gemigreerd);
       return gemigreerd;
     }
 
+    if (remote.length > 0) localStorage.setItem(STORAGE_KEYS.migrated, 'true');
     schrijfJson(STORAGE_KEYS.storingen, remote);
     return remote;
   } catch (e) {
