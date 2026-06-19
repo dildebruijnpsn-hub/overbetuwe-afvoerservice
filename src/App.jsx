@@ -74,110 +74,44 @@ const REPARATIE_NODIG = ['Ja', 'Nee', 'Mogelijk'];
 const URGENTIES = ['Spoed', 'Hoog', 'Normaal', 'Laag'];
 const UITVOERING = ['Veren', 'Frezen', 'Doorspuiten', 'Plopper', 'Combinatie'];
 
-// =================== PRIJSLIJST (incl. BTW) ===================
+// =================== PRIJSLIJST (incl. BTW, per uur) ===================
 // Standaardwaarden - kunnen via Instellingen worden aangepast
 const PRIJSLIJST_STANDAARD = [
-  { id: 'riool_ontstoppen', label: 'Riool ontstoppen', omschrijving: 'Hoofdleiding of buitenriool', tariefIncl: 149.00, tariefExcl: 123.14, eenheid: 'vast', categorie: 'dienst' },
-  { id: 'afvoer_ontstoppen', label: 'Afvoer ontstoppen', omschrijving: 'Keuken, badkamer, toilet of doucheafvoer', tariefIncl: 149.00, tariefExcl: 123.14, eenheid: 'vast', categorie: 'dienst' },
-  { id: 'camera_inspectie', label: 'Camera-inspectie', omschrijving: 'Inspectie van riool en afvoer met camera', tariefIncl: 149.00, tariefExcl: 123.14, eenheid: 'vast', categorie: 'dienst' },
-  { id: 'extra_uur', label: 'Extra werkzaamheden na eerste uur', omschrijving: 'Uurtarief na het inbegrepen eerste uur', tariefIncl: 65.00, tariefExcl: 53.72, eenheid: 'uur', categorie: 'extra' },
-  { id: 'toeslag_avond', label: 'Toeslag maandag t/m vrijdag na 17:00 uur', omschrijving: 'Avondtoeslag', tariefIncl: 45.00, tariefExcl: 37.19, eenheid: 'vast', categorie: 'toeslag' },
-  { id: 'toeslag_weekend', label: 'Toeslag zaterdag en zondag', omschrijving: 'Weekendtoeslag', tariefIncl: 75.00, tariefExcl: 61.98, eenheid: 'vast', categorie: 'toeslag' },
-  { id: 'toeslag_feestdag_nacht', label: 'Toeslag feestdagen en nachturen', omschrijving: 'Feestdag- en nachttoeslag', tariefIncl: 95.00, tariefExcl: 78.51, eenheid: 'vast', categorie: 'toeslag' },
+  { id: 'bus_normaal', label: 'Ontstoppingsbus particulier', tariefIncl: 195.00, tariefExcl: 161.16, weekend: false },
+  { id: 'bus_weekend', label: 'Ontstoppingsbus weekendtarief', tariefIncl: 365.00, tariefExcl: 301.65, weekend: true },
+  { id: 'camera', label: 'Toeslag rioolcamera', tariefIncl: 202.50, tariefExcl: 167.36, weekend: false },
+  { id: 'rookmachine', label: 'Toeslag rookmachine', tariefIncl: 215.00, tariefExcl: 177.69, weekend: false },
+  { id: 'minigraver', label: 'Minigraver', tariefIncl: 98.50, tariefExcl: 81.40, weekend: false },
+  { id: 'medewerker', label: 'Extra medewerker', tariefIncl: 82.50, tariefExcl: 68.18, weekend: false },
 ];
 
 // Mutable kopie die wordt gebruikt door alle componenten - wordt overschreven met opgeslagen waarden uit Supabase
 const PRIJSLIJST = PRIJSLIJST_STANDAARD.map(p => ({ ...p }));
-const TARIEVEN_VERSIE = '2026-06-15-vast-149-toeslagen';
 
-const OUDE_PRIJSREGEL_MIGRATIE = {
-  bus_normaal: [{ id: 'riool_ontstoppen' }],
-  bus_weekend: [{ id: 'riool_ontstoppen' }, { id: 'toeslag_weekend' }],
-  camera: [{ id: 'camera_inspectie' }],
-  rookmachine: [{ id: 'extra_uur', neemUrenOver: true }],
-  minigraver: [{ id: 'extra_uur', neemUrenOver: true }],
-  medewerker: [{ id: 'extra_uur', neemUrenOver: true }],
-};
-
-function vindPrijsItem(id) {
-  return PRIJSLIJST.find(p => p.id === id);
-}
-
-function regelAantal(item, regel) {
-  if (!item) return 0;
-  if (item.eenheid === 'uur') return parseFloat(regel.uren) || 0;
-  return parseFloat(regel.aantal ?? 1) || 1;
-}
-
-function maakPrijsregel(id, bron = {}, neemUrenOver = false) {
-  const item = vindPrijsItem(id);
-  if (!item) return null;
-  if (item.eenheid === 'uur') {
-    return { id, uren: parseFloat(neemUrenOver ? (bron.uren ?? 1) : 1) || 1 };
-  }
-  return { id, aantal: parseFloat(bron.aantal ?? 1) || 1 };
-}
-
-function voegPrijsregelToe(regels, regel) {
-  if (!regel) return regels;
-  const item = vindPrijsItem(regel.id);
-  if (!item) return regels;
-  const bestaand = regels.find(r => r.id === regel.id);
-  if (!bestaand) return [...regels, regel];
-  if (item.eenheid === 'uur') {
-    bestaand.uren = (parseFloat(bestaand.uren) || 0) + (parseFloat(regel.uren) || 0);
-  } else {
-    bestaand.aantal = Math.max(parseFloat(bestaand.aantal) || 1, parseFloat(regel.aantal) || 1);
-  }
-  return regels;
-}
-
-function normaliseerPrijsregels(prijsregels) {
-  if (!prijsregels || !Array.isArray(prijsregels)) return [];
-  return prijsregels.reduce((regels, regel) => {
-    if (!regel || !regel.id) return regels;
-    const migratie = OUDE_PRIJSREGEL_MIGRATIE[regel.id];
-    if (migratie) {
-      return migratie.reduce((acc, doel) => voegPrijsregelToe(acc, maakPrijsregel(doel.id, regel, doel.neemUrenOver)), regels);
-    }
-    return voegPrijsregelToe(regels, maakPrijsregel(regel.id, regel, true));
-  }, []);
-}
-
-function pasTarievenToe(tarieven) {
-  if (!tarieven || !Array.isArray(tarieven)) return;
-  tarieven.forEach(t => {
-    const item = PRIJSLIJST.find(p => p.id === t.id);
-    if (item) {
-      item.tariefIncl = t.tariefIncl;
-      item.tariefExcl = t.tariefExcl;
-    }
-  });
-}
-
-function regelAantalLabel(item, regel) {
-  const aantal = regelAantal(item, regel);
-  if (item?.eenheid === 'uur') return `${aantal.toFixed(2).replace('.', ',')} uur`;
-  return 'Vast';
-}
-
-function tariefOmschrijving(item) {
-  if (!item) return '';
-  return item.eenheid === 'uur' ? `${euro(item.tariefIncl)} per uur` : `${euro(item.tariefIncl)} vast tarief`;
+// Bepaal of een datum/tijd in het weekendtarief valt (vr 18:00 - ma 06:00)
+function isWeekendTarief(datumString) {
+  if (!datumString) return false;
+  const d = new Date(datumString);
+  const dag = d.getDay(); // 0=zo, 1=ma, ..., 5=vr, 6=za
+  const uur = d.getHours();
+  if (dag === 6 || dag === 0) return true; // hele zaterdag/zondag
+  if (dag === 5 && uur >= 18) return true; // vrijdag vanaf 18:00
+  if (dag === 1 && uur < 6) return true;   // maandag tot 06:00
+  return false;
 }
 
 // Format euro-bedrag
 function euro(bedrag) {
-  return '\u20ac ' + bedrag.toFixed(2).replace('.', ',');
+  return 'a ' + bedrag.toFixed(2).replace('.', ',');
 }
 
 // Bereken totaal van prijsregels
 function berekenTotaal(prijsregels) {
-  const regels = normaliseerPrijsregels(prijsregels);
-  return regels.reduce((som, r) => {
-    const item = vindPrijsItem(r.id);
+  if (!prijsregels || !Array.isArray(prijsregels)) return 0;
+  return prijsregels.reduce((som, r) => {
+    const item = PRIJSLIJST.find(p => p.id === r.id);
     if (!item) return som;
-    return som + (item.tariefIncl * regelAantal(item, r));
+    return som + (item.tariefIncl * (parseFloat(r.uren) || 0));
   }, 0);
 }
 const STATUS_STORING = ['Nieuw', 'In behandeling', 'Opgelost', 'Tijdelijk opgelost', 'Camera nodig', 'Reparatie nodig', 'Afgerond'];
@@ -251,9 +185,12 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
-// =================== LOKALE OPSLAG CONFIGURATIE ===================
-// Veilig voor eerste PWA-preview: geen koppeling met een bestaand extern databaseproject.
-// Later kan deze laag worden vervangen door een nieuw, apart Overbetuwe Supabase-project.
+// =================== SUPABASE CONFIGURATIE ===================
+// Nieuw apart Overbetuwe-project: dghaeatndvzjtqyzccce
+const SUPABASE_URL = 'https://dghaeatndvzjtqyzccce.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_d5UxBWfoxtjUeFXXP8tujg_Zpgi7NR-';
+const SUPABASE_TABLE = 'storingen';
+
 const STORAGE_KEYS = {
   storingen: 'overbetuwe_riool_storingen_v1',
   instellingen: 'overbetuwe_riool_instellingen_v1',
@@ -397,7 +334,7 @@ function vanDb(rij) {
     geplandeDatum: dbNaarInput(rij.geplande_datum) || '',
     opmerking: opmerking,
     historie: rij.historie || [],
-    prijsregels: normaliseerPrijsregels(rij.prijsregels),
+    prijsregels: rij.prijsregels || [],
     // Particuliere bongegevens (uit opmerking gesplit, alleen aanwezig bij Particulier)
     klantNaam: (bon && bon.klantNaam) || '',
     telefoon: (bon && bon.telefoon) || '',
@@ -435,13 +372,13 @@ function naarDb(s) {
     opgelost: s.opgelost || null,
     reparatie_nodig: s.reparatieNodig || null,
     urgentie: s.urgentie || 'Normaal',
-    // uitvoering: s.uitvoering || null,           // TIJDELIJK UIT - cache-issue Supabase
+    uitvoering: s.uitvoering || null,
     status_storing: s.statusStoring || 'Nieuw',
     status_reparatie: s.statusReparatie || 'Te plannen',
     geplande_datum: s.geplandeDatum || null,
     opmerking: opmerkingVoorDb,
     historie: s.historie || [],
-    // prijsregels: s.prijsregels || [],           // TIJDELIJK UIT - cache-issue Supabase
+    prijsregels: s.prijsregels || [],
   };
 }
 
@@ -460,35 +397,107 @@ function schrijfJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+async function supabaseRequest(path, opties = {}) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opties,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      ...(opties.headers || {}),
+    },
+  });
+
+  const tekst = await response.text();
+  let data = null;
+  if (tekst) {
+    try {
+      data = JSON.parse(tekst);
+    } catch (e) {
+      data = tekst;
+    }
+  }
+
+  if (!response.ok) {
+    const melding = typeof data === 'object' && data
+      ? (data.message || data.error || JSON.stringify(data))
+      : (data || response.statusText);
+    throw new Error(melding);
+  }
+
+  return data;
+}
+
 async function laadStoringen() {
-  const lijst = leesJson(STORAGE_KEYS.storingen, []);
-  return Array.isArray(lijst) ? lijst.map(s => ({ ...s, prijsregels: normaliseerPrijsregels(s.prijsregels) })) : [];
+  const lokaal = leesJson(STORAGE_KEYS.storingen, []);
+
+  try {
+    const rijen = await supabaseRequest(`${SUPABASE_TABLE}?select=*&order=aangemaakt.desc`);
+    const remote = Array.isArray(rijen) ? rijen.map(vanDb) : [];
+
+    if (remote.length === 0 && lokaal.length > 0) {
+      const gemigreerd = [];
+      for (const item of lokaal) {
+        const id = item.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const aangemaakt = item.aangemaakt || new Date().toISOString();
+        const payload = { id, aangemaakt, ...naarDb({ ...item, id, aangemaakt }) };
+        const rows = await supabaseRequest(SUPABASE_TABLE, {
+          method: 'POST',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify(payload),
+        });
+        gemigreerd.push(vanDb(rows[0]));
+      }
+      schrijfJson(STORAGE_KEYS.storingen, gemigreerd);
+      return gemigreerd;
+    }
+
+    schrijfJson(STORAGE_KEYS.storingen, remote);
+    return remote;
+  } catch (e) {
+    console.warn('Supabase kon niet geladen worden, lokale cache wordt gebruikt:', e);
+    return lokaal;
+  }
 }
 
 async function voegStoringToe(storing) {
   const lijst = await laadStoringen();
   const nieuw = {
     ...storing,
-    prijsregels: normaliseerPrijsregels(storing.prijsregels),
     id: storing.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     aangemaakt: storing.aangemaakt || new Date().toISOString(),
   };
-  const bijgewerkt = [nieuw, ...lijst];
+  const rows = await supabaseRequest(SUPABASE_TABLE, {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ id: nieuw.id, aangemaakt: nieuw.aangemaakt, ...naarDb(nieuw) }),
+  });
+  const opgeslagen = vanDb(rows[0]);
+  const bijgewerkt = [opgeslagen, ...lijst];
   schrijfJson(STORAGE_KEYS.storingen, bijgewerkt);
-  return nieuw;
+  return opgeslagen;
 }
 
 async function werkStoringBij(id, storing) {
   const lijst = await laadStoringen();
   const bestaand = lijst.find(s => s.id === id) || {};
-  const bijgewerktItem = { ...bestaand, ...storing, id, prijsregels: normaliseerPrijsregels(storing.prijsregels ?? bestaand.prijsregels) };
+  const bijgewerktItem = { ...bestaand, ...storing, id };
+  const rows = await supabaseRequest(`${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(naarDb(bijgewerktItem)),
+  });
+  const opgeslagen = rows && rows[0] ? vanDb(rows[0]) : bijgewerktItem;
   const bijgewerkt = lijst.map(s => s.id === id ? bijgewerktItem : s);
   schrijfJson(STORAGE_KEYS.storingen, bijgewerkt);
-  return bijgewerktItem;
+  return opgeslagen;
 }
 
 async function verwijderStoringDb(id) {
   const lijst = await laadStoringen();
+  await supabaseRequest(`${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
   schrijfJson(STORAGE_KEYS.storingen, lijst.filter(s => s.id !== id));
 }
 
@@ -515,15 +524,17 @@ export default function OverbetuweApp() {
   const [alleFilter, setAlleFilter] = useState('alles'); // initieel filter voor AlleStoringen scherm
 
   useEffect(() => {
-    // Laad opgeslagen tarieven, maar reset oude tariefsets naar de actuele vaste tarieven.
-    Promise.all([laadInstelling('tarieven', null), laadInstelling('tarievenVersie', null)]).then(async ([opgeslagen, versie]) => {
-      if (versie !== TARIEVEN_VERSIE) {
-        pasTarievenToe(PRIJSLIJST_STANDAARD);
-        await bewaarInstelling('tarieven', PRIJSLIJST_STANDAARD.map(p => ({ ...p })));
-        await bewaarInstelling('tarievenVersie', TARIEVEN_VERSIE);
-        return;
+    // Laad opgeslagen tarieven (overschrijft de standaard PRIJSLIJST)
+    laadInstelling('tarieven', null).then(opgeslagen => {
+      if (opgeslagen && Array.isArray(opgeslagen)) {
+        opgeslagen.forEach(t => {
+          const item = PRIJSLIJST.find(p => p.id === t.id);
+          if (item) {
+            item.tariefIncl = t.tariefIncl;
+            item.tariefExcl = t.tariefExcl;
+          }
+        });
       }
-      if (opgeslagen && Array.isArray(opgeslagen)) pasTarievenToe(opgeslagen);
     });
 
     laadStoringen().then(d => { setStoringen(d); setLaden(false); });
@@ -1940,7 +1951,7 @@ function maakBonEmail(data) {
   ].filter(Boolean);
 
   if (data.bonBedrag && !geenPrijs) {
-    regels.push(`Totaalbedrag: \u20ac ${data.bonBedrag}`);
+    regels.push(`Totaalbedrag: a ${data.bonBedrag}`);
     if (data.betalingMethode) regels.push(`Betaalwijze: ${data.betalingMethode}`);
     if (data.bonOpmerking) regels.push(`Opmerking: ${data.bonOpmerking}`);
     regels.push('');
@@ -2028,16 +2039,16 @@ function maakBonHtml(data) {
   const isBedrijfBon = isBedrijfBonRaw || isVVEBon; // beide gedragen zich hetzelfde voor prijsblok
 
   const prijsRijen = (data.prijsregels || []).map(r => {
-    const item = vindPrijsItem(r.id);
+    const item = PRIJSLIJST.find(p => p.id === r.id);
     if (!item) return '';
-    const aantal = regelAantal(item, r);
+    const uren = parseFloat(r.uren) || 0;
     const tarief = item.tariefIncl;
-    const regelTotaal = tarief * aantal;
+    const regelTotaal = tarief * uren;
     return `<tr>
       <td>${escapeHtml(item.label)}</td>
-      <td style="text-align:center">${escapeHtml(regelAantalLabel(item, r))}</td>
-      <td style="text-align:right">&euro; ${tarief.toFixed(2).replace('.', ',')}</td>
-      <td style="text-align:right">&euro; ${regelTotaal.toFixed(2).replace('.', ',')}</td>
+      <td style="text-align:center">${uren.toFixed(2)}</td>
+      <td style="text-align:right">a ${tarief.toFixed(2)}</td>
+      <td style="text-align:right">a ${regelTotaal.toFixed(2)}</td>
     </tr>`;
   }).join('');
 
@@ -2155,7 +2166,7 @@ function maakBonHtml(data) {
     <thead>
       <tr style="background:#f5b800; color:#1a3a6e;">
         <th style="padding:8px; text-align:left; border:1px solid #000">Omschrijving</th>
-        <th style="padding:8px; text-align:center; border:1px solid #000">Aantal/uren</th>
+        <th style="padding:8px; text-align:center; border:1px solid #000">Uren</th>
         <th style="padding:8px; text-align:right; border:1px solid #000">Tarief</th>
         <th style="padding:8px; text-align:right; border:1px solid #000">Totaal</th>
       </tr>
@@ -2164,16 +2175,16 @@ function maakBonHtml(data) {
   </table>
   <div class="totaal-blok">
     <table class="totaal-tabel">
-      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">&euro; ${totaalEx.toFixed(2).replace('.', ',')}</td></tr>
-      <tr><td>BTW (21%):</td><td style="text-align:right">&euro; ${btw.toFixed(2).replace('.', ',')}</td></tr>
-      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">&euro; ${totaal.toFixed(2).replace('.', ',')}</td></tr>
+      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">a ${totaalEx.toFixed(2)}</td></tr>
+      <tr><td>BTW (21%):</td><td style="text-align:right">a ${btw.toFixed(2)}</td></tr>
+      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">a ${totaal.toFixed(2)}</td></tr>
     </table>
   </div>
   ` : ''}
 
   ${(!isBedrijfBon && (data.bonBedrag || data.bonOpmerking)) ? `
   <div style="margin-top: 16px; padding: 12px; border: 1px solid #1a3a6e; border-radius: 6px;">
-    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: &euro; ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
+    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: a ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
     ${data.bonOpmerking ? `<div style="font-size: 13px; color: #333;">${escapeHtml(data.bonOpmerking)}</div>` : ''}
   </div>` : ''}
 
@@ -2248,18 +2259,33 @@ function Dropdown({ waarde, opties, onKies, placeholder, rood }) {
 
 // =================== PRIJS SECTIE (alleen particulier) ===================
 function PrijsSectie({ datum, prijsregels, onWijzig }) {
+  const weekend = isWeekendTarief(datum);
+
+  // Auto-vervang regulier <-> weekend als datum wijzigt
+  useEffect(() => {
+    if (!prijsregels || prijsregels.length === 0) return;
+    const heeftBus = prijsregels.find(r => r.id === 'bus_normaal' || r.id === 'bus_weekend');
+    if (!heeftBus) return;
+    const juisteId = weekend ? 'bus_weekend' : 'bus_normaal';
+    if (heeftBus.id !== juisteId) {
+      onWijzig(prijsregels.map(r =>
+        (r.id === 'bus_normaal' || r.id === 'bus_weekend') ? { ...r, id: juisteId } : r
+      ));
+    }
+    // eslint-disable-next-line
+  }, [datum]);
+
   const isAangevinkt = (id) => prijsregels?.some(r => r.id === id);
   const getUren = (id) => {
     const r = prijsregels?.find(x => x.id === id);
     return r ? r.uren : '';
   };
 
-  const toggle = (item) => {
-    const id = item.id;
+  const toggle = (id) => {
     if (isAangevinkt(id)) {
       onWijzig(prijsregels.filter(r => r.id !== id));
     } else {
-      onWijzig([...(prijsregels || []), { id, uren: item.eenheid === 'uur' ? 1 : undefined, aantal: item.eenheid === 'uur' ? undefined : 1 }]);
+      onWijzig([...(prijsregels || []), { id, uren: 1 }]);
     }
   };
 
@@ -2267,14 +2293,12 @@ function PrijsSectie({ datum, prijsregels, onWijzig }) {
     onWijzig(prijsregels.map(r => r.id === id ? { ...r, uren } : r));
   };
 
-  const diensten = PRIJSLIJST.filter(p => p.categorie === 'dienst');
-  const extraRegels = PRIJSLIJST.filter(p => p.categorie === 'extra');
-  const toeslagen = PRIJSLIJST.filter(p => p.categorie === 'toeslag');
-  const groepen = [
-    { titel: 'Werkzaamheden', items: diensten },
-    { titel: 'Extra tijd', items: extraRegels },
-    { titel: 'Toeslagen', items: toeslagen },
-  ];
+  // Filter prijslijst: laat alleen de juiste bus zien (normaal of weekend)
+  const zichtbarePrijslijst = PRIJSLIJST.filter(p => {
+    if (p.id === 'bus_normaal' && weekend) return false;
+    if (p.id === 'bus_weekend' && !weekend) return false;
+    return true;
+  });
 
   const totaal = berekenTotaal(prijsregels);
 
@@ -2282,57 +2306,53 @@ function PrijsSectie({ datum, prijsregels, onWijzig }) {
     <div style={{ marginBottom: 14, background: COLORS.bg, padding: 14, borderRadius: 12, border: `2px dashed ${COLORS.yellow}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <label style={{ fontSize: 14, fontWeight: 700, color: COLORS.blue }}>Prijsberekening (particulier)</label>
+        {weekend && (
+          <span style={{ background: COLORS.red, color: COLORS.white, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+            WEEKENDTARIEF
+          </span>
+        )}
       </div>
       <p style={{ fontSize: 12, color: COLORS.textLight, margin: '0 0 12px' }}>
-        Voorrijkosten en het eerste uur zijn inbegrepen binnen het werkgebied. Vink werkzaamheden en eventuele toeslagen aan.
+        Vink aan wat is gebruikt en vul de uren in. Bedragen zijn incl. BTW.
       </p>
 
-      {groepen.map(groep => (
-        <div key={groep.titel} style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 12, color: COLORS.blue, fontWeight: 800, margin: '8px 0 5px' }}>{groep.titel}</div>
-          {groep.items.map(p => {
-            const aangevinkt = isAangevinkt(p.id);
-            return (
-              <div key={p.id} style={{ background: COLORS.white, borderRadius: 8, padding: 10, marginBottom: 6, border: `1px solid ${aangevinkt ? COLORS.yellow : COLORS.border}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    type="checkbox"
-                    checked={aangevinkt}
-                    onChange={() => toggle(p)}
-                    style={{ width: 22, height: 22, accentColor: COLORS.blue, flexShrink: 0 }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: COLORS.text }}>{p.label}</div>
-                    {p.omschrijving && <div style={{ fontSize: 11, color: COLORS.textLight, marginTop: 1 }}>{p.omschrijving}</div>}
-                    <div style={{ fontSize: 11, color: COLORS.textLight, marginTop: 2 }}>{tariefOmschrijving(p)}</div>
-                  </div>
-                  {aangevinkt && p.eenheid === 'uur' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <input
-                        type="number"
-                        step="0.25"
-                        min="0"
-                        value={getUren(p.id)}
-                        onChange={e => updateUren(p.id, e.target.value)}
-                        style={{ width: 60, padding: '6px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, fontSize: 14, textAlign: 'center' }}
-                      />
-                      <span style={{ fontSize: 12, color: COLORS.textLight }}>uur</span>
-                    </div>
-                  )}
-                  {aangevinkt && p.eenheid !== 'uur' && (
-                    <div style={{ color: COLORS.blue, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>Vast</div>
-                  )}
-                </div>
-                {aangevinkt && (
-                  <div style={{ textAlign: 'right', fontSize: 12, color: COLORS.blue, fontWeight: 600, marginTop: 4 }}>
-                    {euro(p.tariefIncl * regelAantal(p, prijsregels.find(r => r.id === p.id) || {}))}
-                  </div>
-                )}
+      {zichtbarePrijslijst.map(p => {
+        const aangevinkt = isAangevinkt(p.id);
+        return (
+          <div key={p.id} style={{ background: COLORS.white, borderRadius: 8, padding: 10, marginBottom: 6, border: `1px solid ${aangevinkt ? COLORS.yellow : COLORS.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input
+                type="checkbox"
+                checked={aangevinkt}
+                onChange={() => toggle(p.id)}
+                style={{ width: 22, height: 22, accentColor: COLORS.blue, flexShrink: 0 }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: COLORS.text }}>{p.label}</div>
+                <div style={{ fontSize: 11, color: COLORS.textLight }}>{euro(p.tariefIncl)} per uur</div>
               </div>
-            );
-          })}
-        </div>
-      ))}
+              {aangevinkt && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <input
+                    type="number"
+                    step="0.25"
+                    min="0"
+                    value={getUren(p.id)}
+                    onChange={e => updateUren(p.id, e.target.value)}
+                    style={{ width: 60, padding: '6px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, fontSize: 14, textAlign: 'center' }}
+                  />
+                  <span style={{ fontSize: 12, color: COLORS.textLight }}>uur</span>
+                </div>
+              )}
+            </div>
+            {aangevinkt && parseFloat(getUren(p.id)) > 0 && (
+              <div style={{ textAlign: 'right', fontSize: 12, color: COLORS.blue, fontWeight: 600, marginTop: 4 }}>
+                {euro(p.tariefIncl * parseFloat(getUren(p.id)))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {totaal > 0 && (
         <div style={{ background: COLORS.blue, color: COLORS.white, padding: '12px 14px', borderRadius: 8, marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2367,7 +2387,7 @@ function ReparatiePlanning({ storingen, onBewerk, onVerwijder }) {
     const csv = [headers, ...rijen].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement('->');
     a.href = url; a.download = `reparaties_${new Date().toISOString().split('T')[0]}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
@@ -2478,20 +2498,20 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
         <thead>
           <tr style="background:#0a3d7a;color:white;">
             <th style="padding:6px 8px;text-align:left;">Omschrijving</th>
-            <th style="padding:6px 8px;text-align:center;">Aantal/uren</th>
-            <th style="padding:6px 8px;text-align:right;">Tarief</th>
+            <th style="padding:6px 8px;text-align:center;">Uren</th>
+            <th style="padding:6px 8px;text-align:right;">Tarief/uur</th>
             <th style="padding:6px 8px;text-align:right;">Bedrag</th>
           </tr>
         </thead>
         <tbody>
           ${r.prijsregels.map(reg => {
-            const item = vindPrijsItem(reg.id);
+            const item = PRIJSLIJST.find(p => p.id === reg.id);
             if (!item) return '';
-            const aantal = regelAantal(item, reg);
-            const bedrag = item.tariefIncl * aantal;
+            const uren = parseFloat(reg.uren) || 0;
+            const bedrag = item.tariefIncl * uren;
             return `<tr>
               <td style="padding:6px 8px;border-bottom:1px solid #e2e6ec;">${escapeHtml(item.label)}</td>
-              <td style="padding:6px 8px;text-align:center;border-bottom:1px solid #e2e6ec;">${escapeHtml(regelAantalLabel(item, reg))}</td>
+              <td style="padding:6px 8px;text-align:center;border-bottom:1px solid #e2e6ec;">${uren.toFixed(2).replace('.', ',')}</td>
               <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #e2e6ec;">${euro(item.tariefIncl)}</td>
               <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #e2e6ec;font-weight:600;">${euro(bedrag)}</td>
             </tr>`;
@@ -2503,7 +2523,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
         </tbody>
       </table>
       <p style="font-size:8pt;color:#6b7280;margin:4px 0 0;font-style:italic;">
-        Voorrijkosten en het eerste uur werkzaamheden zijn inbegrepen binnen ons werkgebied. Extra werkzaamheden worden vooraf besproken.<br>
+        Genoemde tarieven zijn minimumtarieven, inclusief voorrijkosten. ${isWeekendTarief(r.datum) ? 'Weekendtarief van toepassing (vr 18:00 - ma 06:00).' : ''}<br>
         Betaling kan contant of per pin.
       </p>
     </div>
@@ -2597,7 +2617,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
               <div key={idx} style={{ fontSize: 12, color: COLORS.textLight, marginBottom: 4 }}>
                 <span style={{ fontWeight: 600 }}>{formatDatum(h.tijd)} {new Date(h.tijd).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span>
                 {' - '}
-                {h.veld === 'aangemaakt' ? h.naar : <span><strong>{h.veld}</strong>: {h.van}{' -> '}{h.naar}</span>}
+                {h.veld === 'aangemaakt' ? h.naar : <span><strong>{h.veld}</strong>: {h.van} -> {h.naar}</span>}
               </div>
             ))}
           </div>
@@ -2805,7 +2825,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
     const csv = [headers, ...rijen].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement('->');
     a.href = url;
     a.download = `vandalen_backup_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
@@ -4514,9 +4534,14 @@ function Instellingen() {
     setBezig(true);
     try {
       await bewaarInstelling('tarieven', tarieven);
-      await bewaarInstelling('tarievenVersie', TARIEVEN_VERSIE);
       // Update de runtime PRIJSLIJST direct
-      pasTarievenToe(tarieven);
+      tarieven.forEach(t => {
+        const item = PRIJSLIJST.find(p => p.id === t.id);
+        if (item) {
+          item.tariefIncl = t.tariefIncl;
+          item.tariefExcl = t.tariefExcl;
+        }
+      });
       setOpgeslagen(true);
       setTimeout(() => setOpgeslagen(false), 3000);
     } catch (e) {
@@ -4536,18 +4561,15 @@ function Instellingen() {
     <div style={{ padding: 16, maxWidth: 700, margin: '0 auto' }}>
       <h2 style={{ color: COLORS.blue, fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>Instellingen</h2>
       <p style={{ color: COLORS.textLight, fontSize: 13, marginBottom: 20 }}>
-        Pas de vaste tarieven, toeslagen en het extra uurtarief aan voor particuliere klussen.
+        Pas de tarieven aan voor de prijsberekening bij particuliere klussen.
       </p>
 
       <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 12px' }}>Tarieven</h3>
+        <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 12px' }}>Tarieven (per uur)</h3>
 
         {tarieven.map(t => (
           <div key={t.id} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${COLORS.border}` }}>
-            <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text, marginBottom: 3 }}>{t.label}</div>
-            <div style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 6 }}>
-              {t.omschrijving ? `${t.omschrijving} - ` : ''}{t.eenheid === 'uur' ? 'Uurtarief' : 'Vast tarief'}
-            </div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text, marginBottom: 6 }}>{t.label}</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 140 }}>
                 <label style={{ fontSize: 11, color: COLORS.textLight, fontWeight: 600, display: 'block', marginBottom: 3 }}>Excl. BTW</label>
@@ -4605,13 +4627,13 @@ function Instellingen() {
       <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
         <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>Informatie</h3>
         <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0 0 8px' }}>
-          <strong>Voorrijkosten en eerste uur</strong> zijn inbegrepen binnen het werkgebied.
+          <strong>Weekendtarief</strong> wordt automatisch toegepast van vrijdag 18:00 tot maandag 06:00.
         </p>
         <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0 0 8px' }}>
-          <strong>Na het eerste uur</strong> geldt het extra uurtarief. Extra werkzaamheden worden vooraf besproken.
+          <strong>BTW</strong> staat ingesteld op 21% (Nederlands hoog tarief).
         </p>
         <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0' }}>
-          <strong>BTW</strong> staat ingesteld op 21% (Nederlands hoog tarief).
+          Tariefwijzigingen worden direct doorgevoerd voor alle monteurs.
         </p>
       </div>
     </div>
