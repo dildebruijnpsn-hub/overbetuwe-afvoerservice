@@ -102,7 +102,7 @@ function isWeekendTarief(datumString) {
 
 // Format euro-bedrag
 function euro(bedrag) {
-  return 'a ' + bedrag.toFixed(2).replace('.', ',');
+  return 'EUR ' + bedrag.toFixed(2).replace('.', ',');
 }
 
 // Bereken totaal van prijsregels
@@ -225,14 +225,14 @@ function lokaleDatumSleutel(d) {
 function dbNaarInput(dbDatum) {
   if (!dbDatum) return '';
   const s = String(dbDatum);
-  // Alleen datum (geen tijd) a ongewijzigd laten
+  // Alleen datum (geen tijd) ongewijzigd laten
   if (!s.includes('T') && !s.includes(' ')) return s;
   // Heeft timezone-info? Detecteer ALLE varianten: Z, +HH, +HHMM, +HH:MM, -varianten
   const heeftTz = s.endsWith('Z') || /[+-]\d{2}(:?\d{2})?$/.test(s);
   if (heeftTz) {
     const d = new Date(s);
     if (!isNaN(d.getTime())) {
-      return datumNaarInput(d);  // a lokale tijd via getHours/getMinutes
+      return datumNaarInput(d);  // lokale tijd via getHours/getMinutes
     }
   }
   // Geen timezone of niet-parseerbaar - knip op 16 chars en zet spatie om naar T.
@@ -1182,7 +1182,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
   const [bonPreview, setBonPreview] = useState(null); // {onderwerp, body, email} of null
 
   const update = (veld, waarde) => {
-    // Bevestiging vragen bij status a Afgerond (om te voorkomen dat iemand per ongeluk afsluit)
+    // Bevestiging vragen bij status Afgerond (om te voorkomen dat iemand per ongeluk afsluit)
     if ((veld === 'statusReparatie' || veld === 'statusStoring') && waarde === 'Afgerond') {
       const huidigeWaarde = data[veld];
       if (huidigeWaarde !== 'Afgerond') {
@@ -1290,7 +1290,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
     if (!data.prijsregels || data.prijsregels.length === 0) return;
     const totaal = berekenTotaal(data.prijsregels);
     if (totaal <= 0) return;
-    // Format als Nederlandse decimaal: 125.50 a "125,50"
+    // Format als Nederlandse decimaal: 125.50 wordt "125,50"
     const nieuwBedrag = totaal.toFixed(2).replace('.', ',');
     if (data.bonBedrag !== nieuwBedrag) {
       setData(d => ({ ...d, bonBedrag: nieuwBedrag }));
@@ -1349,10 +1349,10 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               if (STANDAARD_OPDRACHTGEVERS.includes(huidigeNaam)) {
                 update('opdrachtgever', v === 'VVE' ? 'VVE: ' : '');
               } else if (v === 'VVE' && !huidigeNaam.startsWith('VVE: ')) {
-                // Van Bedrijf naar VVE a voeg prefix toe
+                // Van Bedrijf naar VVE: voeg prefix toe
                 update('opdrachtgever', 'VVE: ' + naamZonderPrefix);
               } else if (v === 'Bedrijf' && huidigeNaam.startsWith('VVE: ')) {
-                // Van VVE naar Bedrijf a prefix weghalen
+                // Van VVE naar Bedrijf: prefix weghalen
                 update('opdrachtgever', naamZonderPrefix);
               }
               setVrijeNaamType(v);
@@ -2455,7 +2455,7 @@ function Dropdown({ waarde, opties, onKies, placeholder, rood }) {
             <div style={{ overflowY: 'auto', padding: 8 }}>
               {opties.map(o => (
                 <button key={o} onClick={() => { onKies(o); setOpen(false); }} style={{ width: '100%', padding: '16px 14px', border: 'none', background: waarde === o ? COLORS.yellow : COLORS.white, color: waarde === o ? COLORS.blue : COLORS.text, textAlign: 'left', fontSize: 16, borderRadius: 8, cursor: 'pointer', fontWeight: waarde === o ? 700 : 500, marginBottom: 2 }}>
-                  {waarde === o && 'a '}{o}
+                  {waarde === o && '✓ '}{o}
                 </button>
               ))}
             </div>
@@ -2596,7 +2596,7 @@ function ReparatiePlanning({ storingen, onBewerk, onVerwijder }) {
     const csv = [headers, ...rijen].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('->');
+    const a = document.createElement('a');
     a.href = url; a.download = `reparaties_${new Date().toISOString().split('T')[0]}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
@@ -3049,7 +3049,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
     const csv = [headers, ...rijen].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('->');
+    const a = document.createElement('a');
     a.href = url;
     a.download = `overbetuwe_backup_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
@@ -4134,19 +4134,19 @@ function AgendaScherm({ storingen, onBewerk, onWijzig, onNieuweStoringOpDatum })
                                   onClick={() => { setMenuKlusId(null); rondAf(k); }}
                                   style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: '#7cb342', fontWeight: 600 }}
                                 >
-                                  a Afronden
+                                  Afronden
                                 </button>
                                 <button
                                   onClick={() => { setMenuKlusId(null); setSleepKlus(k); }}
                                   style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', borderTop: `1px solid ${COLORS.border}`, textAlign: 'left', cursor: 'pointer', fontSize: 13, color: COLORS.text }}
                                 >
-                                  a Verplaatsen
+                                  Verplaatsen
                                 </button>
                                 <button
                                   onClick={() => { setMenuKlusId(null); haalUitPlanning(k); }}
                                   style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', borderTop: `1px solid ${COLORS.border}`, textAlign: 'left', cursor: 'pointer', fontSize: 13, color: COLORS.textLight }}
                                 >
-                                  a Uitplannen
+                                  Uitplannen
                                 </button>
                               </div>
                             )}
@@ -4317,7 +4317,7 @@ function MaandWeergave({ maandStart, klussenPerDag, sleepKlus, onDropOpDag, onBe
                       textDecoration: isAf ? 'line-through' : 'none',
                     }}
                   >
-                    {isAf && 'a '}{k.adres}
+                    {isAf && '✓ '}{k.adres}
                   </div>
                 );
               })}
@@ -4433,7 +4433,7 @@ function InplanModal({ datum, klussen, onSluit, onPlanIn, onNieuw }) {
             disabled={!gekozenKlus}
             style={{ flex: 2, padding: 12, background: !gekozenKlus ? '#ccc' : COLORS.yellow, color: COLORS.blue, border: 'none', borderRadius: 8, fontWeight: 700, cursor: !gekozenKlus ? 'not-allowed' : 'pointer' }}
           >
-            a Inplannen
+            Inplannen
           </button>
         </div>
       </div>
