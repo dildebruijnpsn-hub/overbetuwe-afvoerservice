@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, Camera, Siren, LayoutDashboard, CloudSun } from 'lucide-react';
+import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, Camera, Siren, LayoutDashboard, CloudSun, Phone, Navigation, MessageCircle, Image as ImageIcon, CreditCard } from 'lucide-react';
 
 // =================== KLEURENPALET OVERBETUWE ===================
 const COLORS = {
@@ -72,6 +72,7 @@ const OPGELOST = ['Ja', 'Tijdelijk', 'Nee'];
 const REPARATIE_NODIG = ['Ja', 'Nee', 'Mogelijk'];
 const URGENTIES = ['Spoed', 'Hoog', 'Normaal', 'Laag'];
 const UITVOERING = ['Veren', 'Frezen', 'Doorspuiten', 'Plopper', 'Combinatie'];
+const FACTUUR_STATUS = ['Niet gefactureerd', 'Gefactureerd', 'Betaald'];
 
 // =================== PRIJSLIJST (incl. BTW, per uur) ===================
 // Standaardwaarden - kunnen via Instellingen worden aangepast
@@ -277,6 +278,66 @@ function combineerOpmerkingEnBon(opmerking, bonData) {
   return opm + BON_TAG_START + JSON.stringify(schoon) + BON_TAG_EINDE;
 }
 
+function schoonTelefoonnummer(telefoon) {
+  return String(telefoon || '').replace(/[^\d+]/g, '');
+}
+
+function maakBelLink(telefoon) {
+  const schoon = schoonTelefoonnummer(telefoon);
+  return schoon ? `tel:${schoon}` : '';
+}
+
+function maakNavigatieLink(data) {
+  const bestemming = [data?.adres, data?.plaats].filter(Boolean).join(', ');
+  return bestemming ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bestemming)}` : '';
+}
+
+function maakWhatsappTekst(data, type = 'onderweg') {
+  const naam = data?.klantNaam ? ` ${data.klantNaam}` : '';
+  const adres = [data?.adres, data?.plaats].filter(Boolean).join(', ');
+  if (type === 'rapport') {
+    return `Hallo${naam}, de werkzaamheden bij ${adres || 'u'} zijn afgerond. De werkbon/rapportage volgt per mail of is zojuist gedeeld. Met vriendelijke groet, Overbetuwe Riool- en Afvoerservice`;
+  }
+  if (type === 'later') {
+    return `Hallo${naam}, ik ben iets later en houd u op de hoogte. Met vriendelijke groet, Overbetuwe Riool- en Afvoerservice`;
+  }
+  return `Hallo${naam}, ik ben onderweg naar ${adres || 'uw adres'}. Met vriendelijke groet, Overbetuwe Riool- en Afvoerservice`;
+}
+
+function maakWhatsappLink(data, type) {
+  const tel = schoonTelefoonnummer(data?.telefoon);
+  const tekst = encodeURIComponent(maakWhatsappTekst(data, type));
+  return tel ? `https://wa.me/${tel.replace(/^\+/, '')}?text=${tekst}` : `https://wa.me/?text=${tekst}`;
+}
+
+function openExtern(url) {
+  if (!url) return;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function leesFotoAlsDataUrl(file, maxBreedte = 900, kwaliteit = 0.62) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Foto kon niet gelezen worden.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Foto kon niet verwerkt worden.'));
+      img.onload = () => {
+        const schaal = Math.min(1, maxBreedte / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * schaal));
+        canvas.height = Math.max(1, Math.round(img.height * schaal));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', kwaliteit));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // Converteer database-rij (snake_case) naar app-formaat (camelCase)
 function vanDb(rij) {
   // Split opmerking in normale opmerking + bongegevens
@@ -309,6 +370,8 @@ function vanDb(rij) {
     betalingMethode: (bon && bon.betalingMethode) || '',
     bonBedrag: (bon && bon.bonBedrag) || '',
     bonOpmerking: (bon && bon.bonOpmerking) || '',
+    factuurStatus: (bon && bon.factuurStatus) || 'Niet gefactureerd',
+    fotos: (bon && Array.isArray(bon.fotos)) ? bon.fotos : [],
   };
 }
 
@@ -324,6 +387,8 @@ function naarDb(s) {
       betalingMethode: s.betalingMethode,
       bonBedrag: s.bonBedrag,
       bonOpmerking: s.bonOpmerking,
+      factuurStatus: s.factuurStatus,
+      fotos: Array.isArray(s.fotos) ? s.fotos : [],
     };
     opmerkingVoorDb = combineerOpmerkingEnBon(s.opmerking || '', bonData) || null;
   }
@@ -533,7 +598,7 @@ export default function OverbetuweApp() {
       }
     }
 
-    // Zorg dat geplandeDatum AAk een tijd bevat (anders geen tijd zichtbaar in vandaag-blok)
+    // Zorg dat geplandeDatum ook een tijd bevat (anders geen tijd zichtbaar in vandaag-blok)
     if (storing.geplandeDatum && String(storing.geplandeDatum).match(/^\d{4}-\d{2}-\d{2}$/)) {
       // Alleen datum aanwezig - neem tijd uit datum (of 08:00 als fallback)
       const tijdUitDatum = String(storing.datum || '').includes('T')
@@ -1070,7 +1135,11 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
 function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, alleStoringen, onOpslaan, onAnnuleer, onPlanHerhaling }) {
   // Huidige datum + tijd in lokale tijd (voor datetime-local input)
   const nuISO = datumNaarInput(new Date());
-  const init = bestaand || {
+  const init = bestaand ? {
+    factuurStatus: 'Niet gefactureerd',
+    fotos: [],
+    ...bestaand,
+  } : {
     datum: nuISO,
     monteur: '',
     opdrachtgever: adresVoorIngevuld?.opdrachtgever || 'Particulier',
@@ -1092,8 +1161,10 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
     klantNaam: '',
     telefoon: '',
     email: '',
+    factuurStatus: 'Niet gefactureerd',
     bonBedrag: '',
     bonOpmerking: '',
+    fotos: [],
   };
   const [data, setData] = useState(init);
   const [adresZoek, setAdresZoek] = useState('');
@@ -1131,8 +1202,34 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
     });
   };
 
+  const voegFotosToe = async (bestanden) => {
+    const selectie = Array.from(bestanden || []).slice(0, 6);
+    if (selectie.length === 0) return;
+    try {
+      const verwerkt = [];
+      for (const file of selectie) {
+        const src = await leesFotoAlsDataUrl(file);
+        if (src) {
+          verwerkt.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            naam: file.name || 'foto.jpg',
+            src,
+            toegevoegd: new Date().toISOString(),
+          });
+        }
+      }
+      setData(d => ({ ...d, fotos: [...(Array.isArray(d.fotos) ? d.fotos : []), ...verwerkt].slice(0, 8) }));
+    } catch (e) {
+      alert(e.message || 'Foto toevoegen mislukt.');
+    }
+  };
+
+  const verwijderFoto = (fotoId) => {
+    setData(d => ({ ...d, fotos: (Array.isArray(d.fotos) ? d.fotos : []).filter(f => f.id !== fotoId) }));
+  };
+
   const isParticulier = data.opdrachtgever === 'Particulier';
-  const isBedrijfModus = vrijeNaamType === 'Bedrijf' || vrijeNaamType === 'VVE'; // Voor bon-knoppen zonder prijs (Bedrijf An VVE)
+  const isBedrijfModus = vrijeNaamType === 'Bedrijf' || vrijeNaamType === 'VVE'; // Voor bon-knoppen zonder prijs (Bedrijf en VVE)
   const toonBonBlok = isParticulier || isBedrijfModus;
   const alleFilterAdressen = ADRESSEN_DATABASE.filter(a =>
     (!data.opdrachtgever || a.opdrachtgever === data.opdrachtgever) &&
@@ -1166,6 +1263,26 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
       })
       .sort((a, b) => new Date(b.datum) - new Date(a.datum)); // nieuwste eerst
   }, [alleStoringen, data.adres, data.plaats, bestaand]);
+
+  const vorigeKlantgegevens = useMemo(() => {
+    const bron = adresGeschiedenis.find(s => s.telefoon || s.email || s.klantNaam);
+    if (!bron) return null;
+    return {
+      klantNaam: bron.klantNaam || '',
+      telefoon: bron.telefoon || '',
+      email: bron.email || '',
+    };
+  }, [adresGeschiedenis]);
+
+  const neemVorigeKlantgegevensOver = () => {
+    if (!vorigeKlantgegevens) return;
+    setData(d => ({
+      ...d,
+      klantNaam: d.klantNaam || vorigeKlantgegevens.klantNaam,
+      telefoon: d.telefoon || vorigeKlantgegevens.telefoon,
+      email: d.email || vorigeKlantgegevens.email,
+    }));
+  };
 
   // Auto-bereken bonBedrag uit prijsregels (alleen bij Particulier - voor Bedrijf/VVE niet relevant)
   useEffect(() => {
@@ -1304,6 +1421,15 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                 + nog {adresGeschiedenis.length - 3} eerdere storing{adresGeschiedenis.length - 3 !== 1 ? 'en' : ''}
               </div>
             )}
+            {vorigeKlantgegevens && (!data.telefoon || !data.email || !data.klantNaam) && (
+              <button
+                type="button"
+                onClick={neemVorigeKlantgegevensOver}
+                style={{ marginTop: 6, border: 'none', borderRadius: 8, background: COLORS.blue, color: COLORS.white, padding: '9px 10px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+              >
+                Vorige klantgegevens overnemen
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1399,6 +1525,30 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               placeholder="06-12345678"
               style={inputStyle}
             />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 8 }}>
+              <button
+                type="button"
+                disabled={!data.telefoon}
+                onClick={() => openExtern(maakBelLink(data.telefoon))}
+                style={{ ...miniActieStyle, opacity: data.telefoon ? 1 : 0.45 }}
+              >
+                <Phone size={15} /> Bel
+              </button>
+              <button
+                type="button"
+                onClick={() => openExtern(maakNavigatieLink(data))}
+                style={miniActieStyle}
+              >
+                <Navigation size={15} /> Navigeer
+              </button>
+              <button
+                type="button"
+                onClick={() => openExtern(maakWhatsappLink(data, 'onderweg'))}
+                style={miniActieStyle}
+              >
+                <MessageCircle size={15} /> WhatsApp
+              </button>
+            </div>
           </Veld>
 
           <Veld label="E-mailadres">
@@ -1417,9 +1567,18 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
               <Veld label="Betaalwijze">
                 <Dropdown
                   waarde={data.betalingMethode}
-                  opties={['PIN betaald', 'Op rekening']}
+                  opties={['PIN betaald', 'Contant betaald', 'Op rekening']}
                   onKies={v => update('betalingMethode', v)}
                   placeholder="Kies betaalwijze"
+                />
+              </Veld>
+
+              <Veld label="Factuurstatus">
+                <Dropdown
+                  waarde={data.factuurStatus || 'Niet gefactureerd'}
+                  opties={FACTUUR_STATUS}
+                  onKies={v => update('factuurStatus', v)}
+                  placeholder="Kies factuurstatus"
                 />
               </Veld>
 
@@ -1477,7 +1636,7 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                       // iPhone: open App Store pagina
                       window.location.href = 'https://apps.apple.com/nl/app/rabo-smartpin/id998267423';
                     } else if (isAndroid) {
-                      // Android Intent URL met fallback naar Play Store als app niet geAnstalleerd is
+                      // Android Intent URL met fallback naar Play Store als app niet geinstalleerd is
                       const fallback = 'https://play.google.com/store/apps/details?id=com.myorder.pinbox.mpos';
                       window.location.href = `intent://#Intent;package=com.myorder.pinbox.mpos;scheme=https;S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
                     } else {
@@ -1551,6 +1710,23 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
             Verstuur bon naar {isParticulier ? 'klant' : (vrijeNaamType === 'VVE' ? 'VVE' : 'bedrijf')}
           </button>
 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 8 }}>
+            <button
+              type="button"
+              onClick={() => openExtern(maakWhatsappLink(data, 'later'))}
+              style={{ ...miniActieStyle, padding: '10px 8px' }}
+            >
+              <MessageCircle size={15} /> Iets later
+            </button>
+            <button
+              type="button"
+              onClick={() => openExtern(maakWhatsappLink(data, 'rapport'))}
+              style={{ ...miniActieStyle, padding: '10px 8px' }}
+            >
+              <MessageCircle size={15} /> Rapport delen
+            </button>
+          </div>
+
           {/* Secundaire knop: Download PDF apart */}
           <button
             type="button"
@@ -1576,6 +1752,46 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
           </p>
         </div>
       )}
+
+      <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14, marginTop: 14, marginBottom: 14, boxShadow: COLORS.shadowSoft }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ width: 34, height: 34, borderRadius: 12, background: COLORS.surfaceBlue, color: COLORS.blue, display: 'grid', placeItems: 'center' }}>
+            <ImageIcon size={18} />
+          </span>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ color: COLORS.blue, fontSize: 15, fontWeight: 850, margin: 0 }}>Foto's werkbon</h3>
+            <p style={{ color: COLORS.textLight, fontSize: 12, margin: '2px 0 0' }}>Voor/na-foto's blijven bij deze storing opgeslagen.</p>
+          </div>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: `1px dashed ${COLORS.blueLight}`, borderRadius: 12, background: COLORS.surfaceBlue, color: COLORS.blue, padding: '12px 10px', fontWeight: 850, fontSize: 14, cursor: 'pointer' }}>
+          <Camera size={18} /> Foto toevoegen
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            onChange={e => { voegFotosToe(e.target.files); e.target.value = ''; }}
+            style={{ display: 'none' }}
+          />
+        </label>
+        {Array.isArray(data.fotos) && data.fotos.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
+            {data.fotos.map(foto => (
+              <div key={foto.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: `1px solid ${COLORS.border}`, background: COLORS.bg, aspectRatio: '1 / 1' }}>
+                <img src={foto.src} alt={foto.naam || 'Werkbon foto'} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <button
+                  type="button"
+                  onClick={() => verwijderFoto(foto.id)}
+                  aria-label="Foto verwijderen"
+                  style={{ position: 'absolute', right: 5, top: 5, width: 26, height: 26, borderRadius: 999, border: 'none', background: 'rgba(0,0,0,0.62)', color: COLORS.white, display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Veld label="Korte opmerking">
         <textarea value={data.opmerking} onChange={e => update('opmerking', e.target.value)} placeholder="Bijv. Leiding gereinigd, loopt weer goed door" style={{ ...inputStyle, minHeight: 90, resize: 'vertical', fontFamily: 'inherit' }} />
@@ -1813,6 +2029,21 @@ const inputStyle = {
   outline: 'none',
 };
 
+const miniActieStyle = {
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 10,
+  background: COLORS.white,
+  color: COLORS.blue,
+  padding: '9px 8px',
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 5,
+};
+
 function SnelleAdresZoeker({ onKies }) {
   const [zoek, setZoek] = useState('');
   const [open, setOpen] = useState(false);
@@ -1900,12 +2131,14 @@ function maakBonEmail(data) {
     data.opgelost ? `Opgelost: ${data.opgelost}` : '',
     data.reparatieNodig ? `Reparatie nodig: ${data.reparatieNodig}` : '',
     data.opmerking ? `Werkbon opmerking: ${data.opmerking}` : '',
+    data.factuurStatus ? `Factuurstatus: ${data.factuurStatus}` : '',
+    Array.isArray(data.fotos) && data.fotos.length > 0 ? `Foto's toegevoegd: ${data.fotos.length}` : '',
     '------------------------------------',
     '',
   ].filter(Boolean);
 
   if (data.bonBedrag && !geenPrijs) {
-    regels.push(`Totaalbedrag: a ${data.bonBedrag}`);
+    regels.push(`Totaalbedrag: EUR ${data.bonBedrag}`);
     if (data.betalingMethode) regels.push(`Betaalwijze: ${data.betalingMethode}`);
     if (data.bonOpmerking) regels.push(`Opmerking: ${data.bonOpmerking}`);
     regels.push('');
@@ -2001,10 +2234,16 @@ function maakBonHtml(data) {
     return `<tr>
       <td>${escapeHtml(item.label)}</td>
       <td style="text-align:center">${uren.toFixed(2)}</td>
-      <td style="text-align:right">a ${tarief.toFixed(2)}</td>
-      <td style="text-align:right">a ${regelTotaal.toFixed(2)}</td>
+      <td style="text-align:right">EUR ${tarief.toFixed(2)}</td>
+      <td style="text-align:right">EUR ${regelTotaal.toFixed(2)}</td>
     </tr>`;
   }).join('');
+  const fotoHtml = (Array.isArray(data.fotos) ? data.fotos : []).slice(0, 6).map((foto, index) => `
+    <div class="foto">
+      <img src="${foto.src}" alt="Werkbon foto ${index + 1}"/>
+      <div>Foto ${index + 1}</div>
+    </div>
+  `).join('');
 
   const html = `<!DOCTYPE html>
 <html lang="nl">
@@ -2035,6 +2274,10 @@ function maakBonHtml(data) {
   .totaal-tabel .totaal-rij td { font-weight: bold; font-size: 15px; border-top: 2px solid #000; padding-top: 8px; }
 
   .betaling { margin-top: 24px; padding: 14px; background: #f5b800; color: #1a3a6e; border-radius: 6px; font-size: 16px; font-weight: bold; text-align: center; }
+  .fotos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px; }
+  .foto { border: 1px solid #ddd; border-radius: 6px; overflow: hidden; page-break-inside: avoid; font-size: 11px; color: #555; }
+  .foto img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .foto div { padding: 6px 8px; }
 
   .voorwaarden { margin-top: 30px; font-size: 10px; color: #555; }
   .footer-url { text-align: center; margin-top: 14px; font-weight: bold; font-size: 14px; color: #000; }
@@ -2096,6 +2339,12 @@ function maakBonHtml(data) {
     <span class="veld-lijn">${escapeHtml(data.email)}</span>
   </div>` : ''}
 
+  ${data.factuurStatus ? `
+  <div class="veld-rij">
+    <span class="veld-label">Factuurstatus</span>
+    <span class="veld-lijn">${escapeHtml(data.factuurStatus)}</span>
+  </div>` : ''}
+
   <hr class="dikke-lijn"/>
 
   <p class="kop">Ontvangen van / geleverd *</p>
@@ -2129,18 +2378,24 @@ function maakBonHtml(data) {
   </table>
   <div class="totaal-blok">
     <table class="totaal-tabel">
-      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">a ${totaalEx.toFixed(2)}</td></tr>
-      <tr><td>BTW (21%):</td><td style="text-align:right">a ${btw.toFixed(2)}</td></tr>
-      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">a ${totaal.toFixed(2)}</td></tr>
+      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">EUR ${totaalEx.toFixed(2)}</td></tr>
+      <tr><td>BTW (21%):</td><td style="text-align:right">EUR ${btw.toFixed(2)}</td></tr>
+      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">EUR ${totaal.toFixed(2)}</td></tr>
     </table>
   </div>
   ` : ''}
 
   ${(!isBedrijfBon && (data.bonBedrag || data.bonOpmerking)) ? `
   <div style="margin-top: 16px; padding: 12px; border: 1px solid #1a3a6e; border-radius: 6px;">
-    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: a ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
+    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: EUR ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
     ${data.bonOpmerking ? `<div style="font-size: 13px; color: #333;">${escapeHtml(data.bonOpmerking)}</div>` : ''}
   </div>` : ''}
+
+  ${fotoHtml ? `
+  <hr class="dikke-lijn"/>
+  <p class="kop">Foto's werkzaamheden</p>
+  <div class="fotos">${fotoHtml}</div>
+  ` : ''}
 
   ${data.betalingMethode ? `
   <div class="betaling">
@@ -2407,7 +2662,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
 </style>
 </head>
 <body>
-<button onclick="window.print()" class="geen-print print-knop">Y-i Afdrukken / Opslaan als PDF</button>
+<button onclick="window.print()" class="geen-print print-knop">Afdrukken / Opslaan als PDF</button>
 <div class="header">
   <div>
     <h1>Overbetuwe</h1>
@@ -2766,21 +3021,37 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
     return { open: open.length, openReparaties: openReparaties.length, spoed: spoed.length, teLaat: teLaat.length, terugkerend, dezeMaand: dezeMaand.length, perOpdrachtgever };
   }, [storingen]);
 
+  const dagAfsluiting = useMemo(() => {
+    const vandaagItems = storingen.filter(s => {
+      const d = String(s.geplandeDatum || s.datum || '').slice(0, 10);
+      return d === vandaag;
+    });
+    const afgerond = vandaagItems.filter(s => s.statusReparatie === 'Afgerond' || s.statusStoring === 'Afgerond' || s.opgelost === 'Ja');
+    const omzetVandaag = vandaagItems.reduce((som, s) => som + berekenTotaal(s.prijsregels || []), 0);
+    const openFacturen = storingen.filter(s => {
+      const bedrag = berekenTotaal(s.prijsregels || []);
+      return bedrag > 0 && (s.factuurStatus || 'Niet gefactureerd') !== 'Betaald';
+    });
+    const openFactuurBedrag = openFacturen.reduce((som, s) => som + berekenTotaal(s.prijsregels || []), 0);
+    const tePlannen = storingen.filter(s => s.reparatieNodig === 'Ja' && !s.geplandeDatum && s.statusReparatie !== 'Afgerond');
+    return { vandaagItems, afgerond, omzetVandaag, openFacturen, openFactuurBedrag, tePlannen };
+  }, [storingen, vandaag]);
+
   // CSV download (alles, ongefilterd) - voor backup
   const downloadAllesCSV = () => {
-    const headers = ['ID', 'Aangemaakt', 'Datum', 'Opdrachtgever', 'Adres', 'Plaats', 'Type melding', 'Locatie', 'Oorzaak', 'Uitvoering', 'Opgelost', 'Reparatie nodig', 'Urgentie', 'Status storing', 'Status reparatie', 'Geplande datum', 'Opmerking'];
+    const headers = ['ID', 'Aangemaakt', 'Datum', 'Opdrachtgever', 'Klantnaam', 'Telefoon', 'Email', 'Adres', 'Plaats', 'Type melding', 'Locatie', 'Oorzaak', 'Uitvoering', 'Opgelost', 'Reparatie nodig', 'Urgentie', 'Status storing', 'Status reparatie', 'Geplande datum', 'Factuurstatus', 'Foto aantal', 'Opmerking'];
     const rijen = storingen.map(s => [
-      s.id || '', s.aangemaakt || '', s.datum, s.opdrachtgever, s.adres, s.plaats,
+      s.id || '', s.aangemaakt || '', s.datum, s.opdrachtgever, s.klantNaam || '', s.telefoon || '', s.email || '', s.adres, s.plaats,
       s.typeMelding || '', s.locatie || '', s.oorzaak || '', s.uitvoering || '',
       s.opgelost || '', s.reparatieNodig || '', s.urgentie, s.statusStoring,
-      s.statusReparatie || '', s.geplandeDatum || '', (s.opmerking || '').replace(/\n/g, ' ')
+      s.statusReparatie || '', s.geplandeDatum || '', s.factuurStatus || 'Niet gefactureerd', Array.isArray(s.fotos) ? s.fotos.length : 0, (s.opmerking || '').replace(/\n/g, ' ')
     ]);
     const csv = [headers, ...rijen].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('->');
     a.href = url;
-    a.download = `vandalen_backup_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `overbetuwe_backup_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -2792,7 +3063,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
       return;
     }
     if (pdfVan > pdfTot) {
-      alert('De "Van"-datum moet vAAr de "Tot"-datum liggen.');
+      alert('De "Van"-datum moet voor de "Tot"-datum liggen.');
       return;
     }
 
@@ -2859,7 +3130,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
   .print-knop { position: fixed; top: 10px; right: 10px; padding: 10px 16px; background: #0a3d7a; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 700; z-index: 999; }
 </style></head>
 <body>
-<button onclick="window.print()" class="geen-print print-knop">Y-i Afdrukken / Opslaan als PDF</button>
+<button onclick="window.print()" class="geen-print print-knop">Afdrukken / Opslaan als PDF</button>
 <div class="header">
   <div>
     <h1>Overbetuwe</h1>
@@ -2962,6 +3233,29 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
         <StatKaart label="Meldingen deze maand" waarde={stats.dezeMaand} kleur={COLORS.blue} onKlik={onNavigeer ? () => onNavigeer('alle', 'alles') : undefined} />
       </div>
 
+      <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 16, marginBottom: 16, boxShadow: COLORS.shadowSoft }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+          <span style={{ width: 36, height: 36, borderRadius: 12, background: COLORS.surfaceBlue, color: COLORS.blue, display: 'grid', placeItems: 'center' }}>
+            <CreditCard size={18} />
+          </span>
+          <div>
+            <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 850, margin: 0 }}>Dagafsluiting</h3>
+            <p style={{ color: COLORS.textLight, fontSize: 12, margin: '2px 0 0' }}>{new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <StatKaart label="Klussen vandaag" waarde={dagAfsluiting.vandaagItems.length} kleur={COLORS.blue} />
+          <StatKaart label="Afgerond vandaag" waarde={dagAfsluiting.afgerond.length} kleur={COLORS.green} />
+          <StatKaart label="Omzet vandaag" waarde={euro(dagAfsluiting.omzetVandaag)} kleur={COLORS.accent} />
+          <StatKaart label="Open facturen" waarde={euro(dagAfsluiting.openFactuurBedrag)} kleur={dagAfsluiting.openFacturen.length ? COLORS.red : COLORS.green} />
+        </div>
+        {dagAfsluiting.tePlannen.length > 0 && (
+          <button type="button" onClick={onNavigeer ? () => onNavigeer('agenda') : undefined} style={{ marginTop: 12, width: '100%', border: 'none', borderRadius: 12, padding: '12px 14px', background: '#FFF4E5', color: COLORS.accentDark, fontWeight: 850, cursor: 'pointer' }}>
+            {dagAfsluiting.tePlannen.length} reparatie{dagAfsluiting.tePlannen.length !== 1 ? 's' : ''} nog in te plannen
+          </button>
+        )}
+      </div>
+
       {/* Periode-PDF generator */}
       <div style={{ background: COLORS.white, border: `2px solid ${COLORS.yellow}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
         <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>Periodeoverzicht (PDF)</h3>
@@ -3044,7 +3338,7 @@ function Dashboard({ storingen, onBewerk, onVerwijder, onNavigeer }) {
       {/* Storingen beheren / verwijderen */}
       {onVerwijder && (
         <div style={{ background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginTop: 16 }}>
-          <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>Y-i Storingen beheren</h3>
+          <h3 style={{ color: COLORS.blue, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>Storingen beheren</h3>
           <p style={{ fontSize: 13, color: COLORS.textLight, margin: '0 0 12px' }}>
             Bekijk en verwijder Alle storingen - ook al opgeloste of afgeronde meldingen.
           </p>
@@ -4171,7 +4465,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
         return tekst.includes(z);
       })
       .sort((a, b) => {
-        // Eerste sortering: open vAAr afgerond
+        // Eerste sortering: open voor afgerond
         const aAf = a.statusReparatie === 'Afgerond' || a.statusStoring === 'Afgerond' || a.opgelost === 'Ja';
         const bAf = b.statusReparatie === 'Afgerond' || b.statusStoring === 'Afgerond' || b.opgelost === 'Ja';
         if (aAf !== bAf) return aAf ? 1 : -1;
@@ -4380,6 +4674,30 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
                       </span>
                     </>
                   )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    disabled={!s.telefoon}
+                    onClick={(e) => { e.stopPropagation(); openExtern(maakBelLink(s.telefoon)); }}
+                    style={{ ...miniActieStyle, padding: '7px 6px', fontSize: 11, opacity: s.telefoon ? 1 : 0.45 }}
+                  >
+                    <Phone size={13} /> Bel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); openExtern(maakNavigatieLink(s)); }}
+                    style={{ ...miniActieStyle, padding: '7px 6px', fontSize: 11 }}
+                  >
+                    <Navigation size={13} /> Route
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); openExtern(maakWhatsappLink(s, 'onderweg')); }}
+                    style={{ ...miniActieStyle, padding: '7px 6px', fontSize: 11 }}
+                  >
+                    <MessageCircle size={13} /> App
+                  </button>
                 </div>
               </div>
             );
