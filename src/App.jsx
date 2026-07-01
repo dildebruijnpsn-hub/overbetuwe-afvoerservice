@@ -195,6 +195,7 @@ const STORAGE_KEYS = {
   storingen: 'overbetuwe_riool_storingen_v1',
   instellingen: 'overbetuwe_riool_instellingen_v1',
   migrated: 'overbetuwe_riool_migrated_to_supabase_v1',
+  session: 'overbetuwe_riool_supabase_session_v1',
 };
 
 // =================== DATUM HELPERS (LOKALE TIJD) ===================
@@ -429,12 +430,67 @@ function schrijfJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function leesSession() {
+  return leesJson(STORAGE_KEYS.session, null);
+}
+
+function bewaarSession(session) {
+  if (!session || !session.access_token) return;
+  schrijfJson(STORAGE_KEYS.session, {
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_at: session.expires_at || Math.floor(Date.now() / 1000) + (session.expires_in || 3600),
+    user: session.user || null,
+  });
+}
+
+function verwijderSession() {
+  localStorage.removeItem(STORAGE_KEYS.session);
+}
+
+async function supabaseAuthRequest(path, body) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.msg || data?.message || data?.error_description || 'Inloggen mislukt.');
+  }
+  return data;
+}
+
+async function loginMetEmail(email, password) {
+  const session = await supabaseAuthRequest('token?grant_type=password', { email, password });
+  bewaarSession(session);
+  return leesSession();
+}
+
+async function actieveSession() {
+  const session = leesSession();
+  if (!session?.access_token) return null;
+  const verlooptBinnenEenMinuut = (session.expires_at || 0) <= Math.floor(Date.now() / 1000) + 60;
+  if (!verlooptBinnenEenMinuut) return session;
+  if (!session.refresh_token) return session;
+  const refreshed = await supabaseAuthRequest('token?grant_type=refresh_token', { refresh_token: session.refresh_token });
+  bewaarSession(refreshed);
+  return leesSession();
+}
+
 async function supabaseRequest(path, opties = {}) {
+  const session = await actieveSession();
+  if (!session?.access_token) {
+    throw new Error('Niet ingelogd. Log opnieuw in om de gegevens te synchroniseren.');
+  }
   const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...opties,
     headers: {
       apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Authorization: `Bearer ${session.access_token}`,
       'Content-Type': 'application/json',
       ...(opties.headers || {}),
     },
@@ -549,6 +605,7 @@ async function bewaarInstelling(id, waarde) {
 
 // =================== HOOFDCOMPONENT ===================
 export default function OverbetuweApp() {
+  const [sessie, setSessie] = useState(() => leesSession());
   const [scherm, setScherm] = useState('home');
   const [storingen, setStoringen] = useState([]);
   const [laden, setLaden] = useState(true);
@@ -559,6 +616,12 @@ export default function OverbetuweApp() {
   const [alleFilter, setAlleFilter] = useState('alles'); // initieel filter voor AlleStoringen scherm
 
   useEffect(() => {
+    if (!sessie?.access_token) {
+      setStoringen([]);
+      setLaden(false);
+      return;
+    }
+    setLaden(true);
     // Laad opgeslagen tarieven (overschrijft de standaard PRIJSLIJST)
     laadInstelling('tarieven', null).then(opgeslagen => {
       if (opgeslagen && Array.isArray(opgeslagen)) {
@@ -572,13 +635,22 @@ export default function OverbetuweApp() {
       }
     });
 
-    laadStoringen().then(d => { setStoringen(d); setLaden(false); });
+    laadStoringen()
+      .then(d => { setStoringen(d); setLaden(false); })
+      .catch(e => {
+        console.warn('Laden mislukt', e);
+        verwijderSession();
+        setSessie(null);
+        setLaden(false);
+      });
     // Automatisch elke 30 seconden bijwerken zodat wijzigingen actueel blijven
     const interval = setInterval(() => {
-      laadStoringen().then(d => setStoringen(d));
+      laadStoringen()
+        .then(d => setStoringen(d))
+        .catch(e => console.warn('Bijwerken mislukt', e));
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [sessie?.access_token]);
 
   const opslaanStoring = async (storing) => {
     const nu = new Date().toISOString();
@@ -660,6 +732,17 @@ export default function OverbetuweApp() {
       alert('Verwijderen mislukt: ' + e.message);
     }
   };
+
+  const uitloggen = () => {
+    verwijderSession();
+    setSessie(null);
+    setScherm('home');
+    setStoringen([]);
+  };
+
+  if (!sessie?.access_token) {
+    return <LoginScherm onLogin={setSessie} />;
+  }
 
   if (laden) {
     return (
@@ -763,7 +846,7 @@ export default function OverbetuweApp() {
         />
       )}
 
-      {scherm === 'instellingen' && <Instellingen />}
+      {scherm === 'instellingen' && <Instellingen onUitloggen={uitloggen} />}
 
       {scherm !== 'nieuw' && (
         <BottomNav
@@ -776,6 +859,78 @@ export default function OverbetuweApp() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// =================== LOGIN ===================
+function LoginScherm({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [wachtwoord, setWachtwoord] = useState('');
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setFout('');
+    setBezig(true);
+    try {
+      const session = await loginMetEmail(email.trim(), wachtwoord);
+      onLogin(session);
+    } catch (err) {
+      setFout(err.message || 'Inloggen mislukt.');
+    } finally {
+      setBezig(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: `linear-gradient(160deg, ${COLORS.blueDark} 0%, ${COLORS.blue} 56%, #0B3D78 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18, fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+      <form onSubmit={submit} style={{ width: '100%', maxWidth: 420, background: COLORS.white, borderRadius: 18, padding: 22, boxShadow: '0 24px 70px rgba(2, 12, 27, 0.34)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+          <div style={{ width: '100%', maxWidth: 300 }}>
+            <Logo small variant="light" />
+          </div>
+        </div>
+        <h1 style={{ margin: '0 0 6px', color: COLORS.blue, fontSize: 24, lineHeight: 1.15, fontWeight: 850 }}>Inloggen</h1>
+        <p style={{ margin: '0 0 18px', color: COLORS.textLight, fontSize: 14, lineHeight: 1.5 }}>
+          Log in om storingen veilig te synchroniseren tussen alle toestellen.
+        </p>
+
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: COLORS.text, marginBottom: 6 }}>E-mail</label>
+        <input
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          style={{ width: '100%', boxSizing: 'border-box', marginBottom: 12, padding: '13px 14px', borderRadius: 12, border: `1px solid ${COLORS.borderStrong}`, fontSize: 16, color: COLORS.text, outlineColor: COLORS.blueLight }}
+        />
+
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: COLORS.text, marginBottom: 6 }}>Wachtwoord</label>
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={wachtwoord}
+          onChange={e => setWachtwoord(e.target.value)}
+          required
+          style={{ width: '100%', boxSizing: 'border-box', marginBottom: 12, padding: '13px 14px', borderRadius: 12, border: `1px solid ${COLORS.borderStrong}`, fontSize: 16, color: COLORS.text, outlineColor: COLORS.blueLight }}
+        />
+
+        {fout && (
+          <div style={{ background: '#FEF3F2', border: '1px solid #FDA29B', color: COLORS.red, borderRadius: 12, padding: 11, fontSize: 13, marginBottom: 12, fontWeight: 650 }}>
+            {fout}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={bezig}
+          style={{ width: '100%', border: 'none', borderRadius: 14, padding: '14px 16px', background: `linear-gradient(135deg, ${COLORS.accent} 0%, #FF5C00 100%)`, color: COLORS.white, fontSize: 16, fontWeight: 850, cursor: bezig ? 'wait' : 'pointer', boxShadow: '0 12px 28px rgba(255, 138, 0, 0.30)' }}
+        >
+          {bezig ? 'Bezig met inloggen...' : 'Inloggen'}
+        </button>
+      </form>
     </div>
   );
 }
@@ -4709,7 +4864,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
 }
 
 // =================== INSTELLINGEN ===================
-function Instellingen() {
+function Instellingen({ onUitloggen }) {
   const [tarieven, setTarieven] = useState(() => PRIJSLIJST.map(p => ({ ...p })));
   const [opgeslagen, setOpgeslagen] = useState(false);
   const [bezig, setBezig] = useState(false);
@@ -4836,6 +4991,16 @@ function Instellingen() {
           Tariefwijzigingen worden direct doorgevoerd in de app.
         </p>
       </div>
+
+      {onUitloggen && (
+        <button
+          type="button"
+          onClick={onUitloggen}
+          style={{ width: '100%', padding: '13px 16px', background: COLORS.white, color: COLORS.red, border: `1px solid ${COLORS.borderStrong}`, borderRadius: 12, fontSize: 15, fontWeight: 800, cursor: 'pointer' }}
+        >
+          Uitloggen
+        </button>
+      )}
     </div>
   );
 }
