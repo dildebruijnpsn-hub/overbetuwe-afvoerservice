@@ -124,7 +124,7 @@ function isWeekendTarief(datumString) {
 
 // Format euro-bedrag
 function euro(bedrag) {
-  return 'EUR ' + bedrag.toFixed(2).replace('.', ',');
+  return '€ ' + bedrag.toFixed(2).replace('.', ',');
 }
 
 // Bereken totaal van prijsregels
@@ -1108,7 +1108,7 @@ export default function OverbetuweApp() {
 
       {scherm === 'instellingen' && <Instellingen />}
 
-      {scherm !== 'nieuw' && (
+      {scherm !== 'nieuw' && !(scherm === 'facturen' && factuurSubScherm === 'formulier') && (
         <BottomNav
           actief={scherm}
           gaNaar={(naar) => {
@@ -1128,7 +1128,7 @@ function TopBar({ onHome }) {
   return (
     <div style={{ position: 'sticky', top: 0, zIndex: 90, overflow: 'hidden', background: `radial-gradient(circle at 84% -20%, rgba(30,136,229,0.32), transparent 42%), linear-gradient(135deg, #061a39 0%, ${COLORS.blueDark} 58%, #0B3D78 100%)`, color: COLORS.white, padding: '10px 14px 12px', boxShadow: '0 12px 32px rgba(15,45,92,0.20)' }}>
       <div style={{ position: 'absolute', right: -52, top: -64, width: 190, height: 190, borderRadius: '50%', border: '24px solid rgba(30,136,229,0.12)', pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '40px minmax(0, 1fr) 40px', alignItems: 'center', gap: 10 }}>
+      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '40px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
         <button onClick={onHome} aria-label="Terug naar home" style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)' }}>
           <ArrowLeft size={20} />
         </button>
@@ -1136,10 +1136,6 @@ function TopBar({ onHome }) {
         <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', height: 48, overflow: 'hidden' }}>
           <Logo small variant="dark" />
         </div>
-
-        <button onClick={onHome} aria-label="Home" style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)' }}>
-          <Home size={19} />
-        </button>
       </div>
     </div>
   );
@@ -1942,8 +1938,8 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
                     <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, color: COLORS.textLight }}>
                         {isGelijk
-                          ? `Automatisch berekend uit prijsregels (EUR ${berekendStr})`
-                          : `Wijkt af van prijsberekening (EUR ${berekendStr})`}
+                          ? `Automatisch berekend uit prijsregels (€ ${berekendStr})`
+                          : `Wijkt af van prijsberekening (€ ${berekendStr})`}
                       </span>
                       {!isGelijk && (
                         <button
@@ -2481,7 +2477,7 @@ function maakBonEmail(data) {
   ].filter(Boolean);
 
   if (data.bonBedrag && !geenPrijs) {
-    regels.push(`Totaalbedrag: EUR ${data.bonBedrag}`);
+    regels.push(`Totaalbedrag: € ${data.bonBedrag}`);
     if (data.betalingMethode) regels.push(`Betaalwijze: ${data.betalingMethode}`);
     if (data.bonOpmerking) regels.push(`Opmerking: ${data.bonOpmerking}`);
     regels.push('');
@@ -2577,8 +2573,8 @@ function maakBonHtml(data) {
     return `<tr>
       <td>${escapeHtml(item.label)}</td>
       <td style="text-align:center">${uren.toFixed(2)}</td>
-      <td style="text-align:right">EUR ${tarief.toFixed(2)}</td>
-      <td style="text-align:right">EUR ${regelTotaal.toFixed(2)}</td>
+      <td style="text-align:right">€ ${tarief.toFixed(2)}</td>
+      <td style="text-align:right">€ ${regelTotaal.toFixed(2)}</td>
     </tr>`;
   }).join('');
   const fotoHtml = (Array.isArray(data.fotos) ? data.fotos : []).slice(0, 6).map((foto, index) => `
@@ -2721,16 +2717,16 @@ function maakBonHtml(data) {
   </table>
   <div class="totaal-blok">
     <table class="totaal-tabel">
-      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">EUR ${totaalEx.toFixed(2)}</td></tr>
-      <tr><td>BTW (21%):</td><td style="text-align:right">EUR ${btw.toFixed(2)}</td></tr>
-      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">EUR ${totaal.toFixed(2)}</td></tr>
+      <tr><td>Subtotaal (excl. BTW):</td><td style="text-align:right">€ ${totaalEx.toFixed(2)}</td></tr>
+      <tr><td>BTW (21%):</td><td style="text-align:right">€ ${btw.toFixed(2)}</td></tr>
+      <tr class="totaal-rij"><td>TOTAAL (incl. BTW):</td><td style="text-align:right">€ ${totaal.toFixed(2)}</td></tr>
     </table>
   </div>
   ` : ''}
 
   ${(!isBedrijfBon && (data.bonBedrag || data.bonOpmerking)) ? `
   <div style="margin-top: 16px; padding: 12px; border: 1px solid #1a3a6e; border-radius: 6px;">
-    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: EUR ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
+    ${data.bonBedrag ? `<div style="font-size: 16px; font-weight: bold; color: #1a3a6e; margin-bottom: 6px;">Totaalbedrag: € ${escapeHtml(String(data.bonBedrag))}</div>` : ''}
     ${data.bonOpmerking ? `<div style="font-size: 13px; color: #333;">${escapeHtml(data.bonOpmerking)}</div>` : ''}
   </div>` : ''}
 
@@ -5052,7 +5048,7 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
 }
 
 // =================== FACTUREN MODULE ===================
-const factuurCard = { background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, boxShadow: COLORS.shadowSoft };
+const factuurCard = { background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, boxShadow: COLORS.shadowSoft, boxSizing: 'border-box', minWidth: 0 };
 const factuurInput = { width: '100%', boxSizing: 'border-box', padding: '12px 12px', border: `1px solid ${COLORS.borderStrong}`, borderRadius: 10, fontSize: 15, background: COLORS.white, color: COLORS.text };
 const factuurLabel = { display: 'block', fontSize: 11, fontWeight: 850, color: COLORS.textLight, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.3 };
 
@@ -5071,16 +5067,13 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
   };
 
   return (
-    <main style={{ padding: '16px 14px 120px', maxWidth: 980, margin: '0 auto' }}>
+    <main style={{ padding: '16px 14px 120px', maxWidth: 980, width: '100%', boxSizing: 'border-box', overflowX: 'hidden', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
         <div>
           <h1 style={{ margin: 0, color: COLORS.blue, fontSize: 24, fontWeight: 950 }}>Facturen</h1>
-          <p style={{ margin: '4px 0 0', color: COLORS.textLight, fontSize: 12 }}>{online ? 'Verbonden met Supabase' : 'Lokale modus - voer de migratie uit voor cloudopslag'}</p>
         </div>
-        {subScherm !== 'overzicht' ? (
-          <button type="button" onClick={terug} style={{ border: `1px solid ${COLORS.border}`, background: COLORS.white, borderRadius: 12, padding: '10px 12px', fontWeight: 800, color: COLORS.blue }}>Terug</button>
-        ) : (
-          <button type="button" onClick={openNieuweFactuur} style={{ border: 'none', background: COLORS.accent, color: COLORS.white, borderRadius: 14, padding: '12px 14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}><Plus size={18} /> Nieuw</button>
+        {subScherm === 'overzicht' && (
+          <button type="button" onClick={openNieuweFactuur} style={{ border: 'none', background: COLORS.blue, color: COLORS.white, borderRadius: 14, padding: '12px 14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}><Plus size={18} /> Nieuw</button>
         )}
       </div>
 
@@ -5162,7 +5155,7 @@ function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onP
       { label: 'Openstaand bedrag', value: formatEuro(open), color: COLORS.blue },
       { label: 'Betaalde facturen', value: facturen.filter(f => f.paymentStatus === 'Betaald').length, color: COLORS.green },
       { label: 'Vervallen facturen', value: facturen.filter(f => f.status === 'Vervallen' || f.paymentStatus === 'Te laat').length, color: COLORS.red },
-      { label: 'Conceptfacturen', value: facturen.filter(f => f.status === 'Concept').length, color: COLORS.accent },
+      { label: 'Conceptfacturen', value: facturen.filter(f => f.status === 'Concept').length, color: COLORS.blueLight },
     ];
   }, [facturen]);
 
@@ -5219,7 +5212,7 @@ function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onP
 }
 
 function StatusBadge({ status, small }) {
-  const kleur = status === 'Betaald' ? COLORS.green : status === 'Vervallen' || status === 'Te laat' ? COLORS.red : status === 'Concept' ? COLORS.accent : COLORS.blue;
+  const kleur = status === 'Betaald' ? COLORS.green : status === 'Vervallen' || status === 'Te laat' ? COLORS.red : status === 'Concept' ? COLORS.blueLight : COLORS.blue;
   return <span style={{ display: 'inline-block', marginTop: 5, marginLeft: 4, borderRadius: 999, background: `${kleur}16`, color: kleur, padding: small ? '3px 7px' : '4px 8px', fontSize: small ? 10 : 11, fontWeight: 850 }}>{status}</span>;
 }
 
@@ -5231,17 +5224,21 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   const [data, setData] = useState(() => JSON.parse(JSON.stringify(factuur)));
   const [melding, setMelding] = useState('');
   const [bezig, setBezig] = useState(false);
-  const [toonGeavanceerd, setToonGeavanceerd] = useState(false);
+  const [stap, setStap] = useState(0);
+  const [klantWijzigen, setKlantWijzigen] = useState(!(factuur.customer?.companyName || factuur.customer?.contactName));
+  const [regelToevoegen, setRegelToevoegen] = useState('');
+  const [regelEditId, setRegelEditId] = useState(null);
   const [toonFotos, setToonFotos] = useState(false);
   const [pvcBedrag, setPvcBedrag] = useState('');
   const totalen = calculateInvoiceTotals(data.items || []);
   const definitief = data.status !== 'Concept';
+  const stappen = ['Klant', 'Werkzaamheden', 'Factuurregels', 'Controle'];
   const update = (path, value) => setData(d => setDeepValue(d, path, value));
   const save = async (extra = {}) => {
     setBezig(true);
     const saved = await onOpslaan({ ...data, ...extra, updatedAt: new Date().toISOString() });
     setData(saved);
-    setMelding('Opgeslagen');
+    setMelding('Concept lokaal opgeslagen');
     setTimeout(() => setMelding(''), 2200);
     setBezig(false);
     return saved;
@@ -5255,19 +5252,25 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   }, [JSON.stringify(data)]);
 
   const addItem = (item = {}) => update('items', [...(data.items || []), normalizeInvoiceItem({ vatRate: bedrijf.defaultVatRate || '21', ...item }, data.items?.length || 0)]);
-  const moveItem = (index, dir) => {
-    const items = [...(data.items || [])];
-    const target = index + dir;
-    if (target < 0 || target >= items.length) return;
-    [items[index], items[target]] = [items[target], items[index]];
-    update('items', items.map((x, i) => ({ ...x, sortOrder: i })));
-  };
   const setItem = (index, patch) => update('items', (data.items || []).map((x, i) => i === index ? { ...x, ...patch } : x));
+  const verwijderItem = (index) => update('items', (data.items || []).filter((_, i) => i !== index).map((x, i) => ({ ...x, sortOrder: i })));
+  const dupliceerItem = (item) => addItem({ ...item, id: makeId('regel') });
+
+  const klantNaam = data.customer?.companyName || data.customer?.contactName || '';
+  const emailOk = !data.customer?.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.customer.email).trim());
+  const telefoonOk = !data.customer?.phone || /^[0-9+()\-\s]{7,}$/.test(String(data.customer.phone).trim());
+  const basisFouten = [];
+  if (!klantNaam.trim()) basisFouten.push('Vul een klantnaam in.');
+  if (!data.customer?.address || !data.customer?.postalCode || !data.customer?.city) basisFouten.push('Vul het volledige klantadres in.');
+  if (!emailOk) basisFouten.push('Vul een geldig e-mailadres in.');
+  if (!telefoonOk) basisFouten.push('Vul een geldig telefoonnummer in.');
+  if (!Array.isArray(data.items) || data.items.length < 1) basisFouten.push('Voeg minimaal één factuurregel toe.');
+  const definitiefFouten = [...basisFouten, ...validateInvoice(data, bedrijf)];
+  const kanDefinitief = definitiefFouten.length === 0;
 
   const maakDefinitief = async () => {
-    const fouten = validateInvoice(data, bedrijf);
-    if (fouten.length) {
-      alert(fouten.join('\n'));
+    if (definitiefFouten.length) {
+      alert(definitiefFouten.join('\n'));
       return;
     }
     if (!confirm('Factuur definitief maken? Daarna hoort inhoudelijk wijzigen via correctie- of creditfactuur te lopen.')) return;
@@ -5304,203 +5307,185 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
     }
     update('items', items);
   };
+  const kiesKlant = (id) => {
+    const klant = klantOpties.find(k => k.id === id);
+    if (!klant) return;
+    update('customerId', klant.id);
+    update('customer', { ...klant });
+    update('customerNumber', klant.customerNumber || data.customerNumber);
+    update('project.workAddress', klant.address || '');
+    update('project.workPostalCode', klant.postalCode || '');
+    update('project.workCity', klant.city || '');
+    setKlantWijzigen(false);
+  };
+  const voegStandaardregelToe = (omschrijving) => {
+    const item = STANDARD_INVOICE_ITEMS.find(x => x.description === omschrijving);
+    if (item) addItem(item);
+    setRegelToevoegen('');
+  };
+  const voegEigenRegelToe = () => {
+    const nieuw = normalizeInvoiceItem({ vatRate: bedrijf.defaultVatRate || '21' }, data.items?.length || 0);
+    update('items', [...(data.items || []), nieuw]);
+    setRegelEditId(nieuw.id);
+    setRegelToevoegen('');
+  };
+  const voegArbeidToe = ({ totaalUren, tarief, monteurs, werkdagen, urenPerDag }) => {
+    addItem({
+      description: `Arbeid monteurs${Number(monteurs || 1) > 1 ? ` (${monteurs} monteurs, ${werkdagen} dagen x ${urenPerDag} uur)` : ''}`,
+      quantity: String(totaalUren || 0),
+      unit: 'uur',
+      unitPriceExVatCents: parseEuroToCents(tarief || '65,00'),
+    });
+    setRegelToevoegen('');
+  };
 
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
+    <div style={{ display: 'grid', gap: 14, paddingBottom: 112, minWidth: 0 }}>
       {melding && <div style={{ ...factuurCard, borderColor: COLORS.green, color: COLORS.green, fontWeight: 850 }}>{melding}</div>}
       {definitief && <div style={{ ...factuurCard, borderColor: '#FEDF89', background: '#FFFAEB', color: '#B54708', fontWeight: 800 }}>Deze factuur is definitief. Corrigeer inhoud normaal via een correctie- of creditfactuur.</div>}
 
-      <FactuurSectie titel="Snelle factuur" icon={FileText}>
-        <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end' }}>
-            <div>
-              <label style={factuurLabel}>Klant zoeken</label>
-              <select style={factuurInput} value="" onChange={e => {
-                const klant = klantOpties.find(k => k.id === e.target.value);
-                if (klant) {
-                  update('customerId', klant.id);
-                  update('customer', { ...klant });
-                  update('customerNumber', klant.customerNumber || data.customerNumber);
-                  update('project.workAddress', klant.address || '');
-                  update('project.workPostalCode', klant.postalCode || '');
-                  update('project.workCity', klant.city || '');
-                }
-              }}>
+      <div style={{ ...factuurCard, padding: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
+          {stappen.map((s, i) => (
+            <button key={s} type="button" onClick={() => setStap(i)} style={{ border: `1px solid ${i === stap ? COLORS.blueLight : COLORS.border}`, background: i === stap ? COLORS.surfaceBlue : COLORS.white, color: i === stap ? COLORS.blue : COLORS.textLight, borderRadius: 12, padding: '9px 4px', fontSize: 11, fontWeight: 900 }}>
+              {i + 1}. {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {stap === 0 && (
+        <FactuurSectie titel="Klant" icon={Home}>
+          {!klantWijzigen && klantNaam ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, background: COLORS.surfaceBlue }}>
+                <div style={{ color: COLORS.blue, fontSize: 18, fontWeight: 950 }}>{klantNaam}</div>
+                <div style={{ marginTop: 6, color: COLORS.text, fontWeight: 700 }}>{data.customer?.address}</div>
+                <div style={{ color: COLORS.textLight }}>{data.customer?.postalCode} {data.customer?.city}</div>
+                {(data.customer?.phone || data.customer?.email) && <div style={{ marginTop: 8, color: COLORS.textLight, fontSize: 13 }}>{data.customer?.phone} {data.customer?.email ? `- ${data.customer.email}` : ''}</div>}
+              </div>
+              <button type="button" onClick={() => setKlantWijzigen(true)} style={secondaryButton}><Edit2 size={16} /> Gegevens wijzigen</button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <label><span style={factuurLabel}>Klant zoeken</span><select style={factuurInput} value="" onChange={e => kiesKlant(e.target.value)}>
                 <option value="">Kies bestaande klant</option>
                 {klantOpties.map(k => <option key={k.id} value={k.id}>{k.companyName || k.contactName} - {k.city}</option>)}
-              </select>
+              </select></label>
+              <div style={responsiveGrid2}>
+                <FInput label="Klantnaam" value={klantNaam} onChange={v => { update('customer.companyName', v); update('customer.contactName', v); }} />
+                <FInput label="Telefoon" value={data.customer?.phone} onChange={v => update('customer.phone', v)} />
+                <FInput label="E-mail" type="email" value={data.customer?.email} onChange={v => update('customer.email', v)} />
+                <FInput label="Straat en huisnummer" value={data.customer?.address} onChange={v => { update('customer.address', v); if (!data.project?.workAddress) update('project.workAddress', v); }} />
+                <FInput label="Postcode" value={data.customer?.postalCode} onChange={v => { update('customer.postalCode', v); if (!data.project?.workPostalCode) update('project.workPostalCode', v); }} />
+                <FInput label="Plaats" value={data.customer?.city} onChange={v => { update('customer.city', v); if (!data.project?.workCity) update('project.workCity', v); }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button type="button" onClick={async () => { const k = await onOpslaanKlant(data.customer); update('customerId', k.id); update('customer', k); setKlantWijzigen(false); }} style={secondaryButton}><Save size={16} /> Klant bewaren</button>
+                <button type="button" onClick={() => setKlantWijzigen(false)} style={secondaryButton}>Klaar</button>
+              </div>
             </div>
-            <button type="button" onClick={() => update('items', createExampleItems())} style={{ ...secondaryButton, height: 45, whiteSpace: 'nowrap' }}>Voorbeeld</button>
-          </div>
+          )}
+        </FactuurSectie>
+      )}
 
+      {stap === 1 && (
+        <FactuurSectie titel="Werkzaamheden" icon={MapPin}>
           <div style={responsiveGrid2}>
-            <FInput label="Klantnaam" value={data.customer?.companyName || data.customer?.contactName || ''} onChange={v => { update('customer.companyName', v); update('customer.contactName', v); }} />
-            <FInput label="Telefoon" value={data.customer?.phone} onChange={v => update('customer.phone', v)} />
-            <FInput label="E-mail" type="email" value={data.customer?.email} onChange={v => update('customer.email', v)} />
-            <FInput label="Klantadres" value={data.customer?.address} onChange={v => { update('customer.address', v); if (!data.project?.workAddress) update('project.workAddress', v); }} />
-            <FInput label="Postcode" value={data.customer?.postalCode} onChange={v => { update('customer.postalCode', v); if (!data.project?.workPostalCode) update('project.workPostalCode', v); }} />
-            <FInput label="Plaats" value={data.customer?.city} onChange={v => { update('customer.city', v); if (!data.project?.workCity) update('project.workCity', v); }} />
+            <FInput label="Werkadres" value={data.project?.workAddress} onChange={v => update('project.workAddress', v)} />
+            <FInput label="Postcode" value={data.project?.workPostalCode} onChange={v => update('project.workPostalCode', v)} />
+            <FInput label="Plaats" value={data.project?.workCity} onChange={v => update('project.workCity', v)} />
+            <FInput label="Uitvoering vanaf" type="date" value={data.project?.deliveryDateFrom} onChange={v => update('project.deliveryDateFrom', v)} />
+            <FInput label="Uitvoering t/m" type="date" value={data.project?.deliveryDateTo} onChange={v => update('project.deliveryDateTo', v)} />
+            <FInput label="Referentie" value={data.project?.reference} onChange={v => update('project.reference', v)} />
+            <FInput label="Werkbonnummer" value={data.project?.workOrderNumber} onChange={v => update('project.workOrderNumber', v)} />
+            <FInput label="Opdrachtgever" value={data.project?.clientName} onChange={v => update('project.clientName', v)} />
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
-            <button type="button" onClick={vulWerkadresVanafKlant} style={secondaryButton}><MapPin size={16} /> Werkadres = klantadres</button>
-            <button type="button" onClick={async () => { const k = await onOpslaanKlant(data.customer); update('customerId', k.id); update('customer', k); }} style={secondaryButton}><Save size={16} /> Klant bewaren</button>
-          </div>
-
-          <FTextarea label="Omschrijving werkzaamheden" value={data.project?.description} onChange={v => update('project.description', v)} />
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+          <button type="button" onClick={vulWerkadresVanafKlant} style={{ ...secondaryButton, width: '100%', marginTop: 10 }}><MapPin size={16} /> Werkadres = klantadres</button>
+          <FTextarea label="Omschrijving opdracht" value={data.project?.description} onChange={v => update('project.description', v)} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 }}>
             <button type="button" onClick={() => update('project.description', 'Vervanging van het bestaande riooltrace, inclusief graafwerk, PVC-materialen, afvoer en herstel.')} style={secondaryButton}>Rioolvervanging</button>
             <button type="button" onClick={() => update('project.description', 'Ontstoppingswerkzaamheden uitgevoerd, leiding gereinigd en afvoer gecontroleerd.')} style={secondaryButton}>Ontstopping</button>
             <button type="button" onClick={() => update('project.description', 'Camera-inspectie uitgevoerd en bevindingen met klant besproken.')} style={secondaryButton}>Camera</button>
           </div>
-
-          <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 12, background: COLORS.surfaceBlue }}>
-            <FInput
-              label="PVC-materialen bedrag excl. btw"
-              inputMode="decimal"
-              value={pvcBedrag}
-              onChange={v => {
-                setPvcBedrag(v);
-                updatePvcBedrag(v);
-              }}
-            />
-            <div style={{ marginTop: 6, color: COLORS.textLight, fontSize: 12, fontWeight: 650 }}>
-              Wordt automatisch als aparte factuurregel toegevoegd.
-            </div>
-          </div>
-
-          <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 10 }}>
-            <TotaalBox totalen={totalen} />
-          </div>
-        </div>
-      </FactuurSectie>
-
-      <button
-        type="button"
-        onClick={() => setToonGeavanceerd(v => !v)}
-        style={{ ...secondaryButton, width: '100%', justifyContent: 'space-between' }}
-      >
-        <span>{toonGeavanceerd ? 'Minder gegevens tonen' : 'Meer gegevens aanpassen'}</span>
-        {toonGeavanceerd ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
-      </button>
-
-      {toonGeavanceerd && (
-        <>
-      <FactuurSectie titel="Factuurgegevens" icon={FileText}>
-        <div style={responsiveGrid2}>
-          <FInput label="Factuurnummer" value={data.invoiceNumber} onChange={v => update('invoiceNumber', v)} disabled={definitief} />
-          <FInput label="Klantnummer" value={data.customerNumber || data.customer?.customerNumber || ''} onChange={v => { update('customerNumber', v); update('customer.customerNumber', v); }} />
-          <FInput label="Factuurdatum" type="date" value={data.invoiceDate} onChange={v => { update('invoiceDate', v); update('dueDate', addDaysIso(v, data.paymentTermDays || bedrijf.defaultPaymentTerm)); }} />
-          <FInput label="Vervaldatum" type="date" value={data.dueDate} onChange={v => update('dueDate', v)} />
-          <FSelect label="Status" value={data.status} onChange={v => update('status', v)} options={INVOICE_STATUSES} />
-          <FSelect label="Betaalstatus" value={data.paymentStatus} onChange={v => update('paymentStatus', v)} options={PAYMENT_STATUSES} />
-          <FInput label="Betaaltermijn in dagen" type="number" value={data.paymentTermDays} onChange={v => { update('paymentTermDays', Number(v)); update('dueDate', addDaysIso(data.invoiceDate, Number(v))); }} />
-        </div>
-      </FactuurSectie>
-
-      <FactuurSectie titel="Klantgegevens" icon={Home}>
-        <label style={factuurLabel}>Klantzoeker</label>
-        <select style={{ ...factuurInput, marginBottom: 10 }} value="" onChange={e => {
-          const klant = klantOpties.find(k => k.id === e.target.value);
-          if (klant) {
-            update('customerId', klant.id);
-            update('customer', { ...klant });
-            update('customerNumber', klant.customerNumber || data.customerNumber);
-          }
-        }}>
-          <option value="">Eerder opgeslagen klant selecteren</option>
-          {klantOpties.map(k => <option key={k.id} value={k.id}>{k.companyName || k.contactName} - {k.city}</option>)}
-        </select>
-        <div style={responsiveGrid2}>
-          <FInput label="Bedrijfsnaam" value={data.customer?.companyName} onChange={v => update('customer.companyName', v)} />
-          <FInput label="Contactpersoon" value={data.customer?.contactName} onChange={v => update('customer.contactName', v)} />
-          <FInput label="Straat en huisnummer" value={data.customer?.address} onChange={v => update('customer.address', v)} />
-          <FInput label="Postcode" value={data.customer?.postalCode} onChange={v => update('customer.postalCode', v)} />
-          <FInput label="Plaats" value={data.customer?.city} onChange={v => update('customer.city', v)} />
-          <FInput label="Telefoonnummer" value={data.customer?.phone} onChange={v => update('customer.phone', v)} />
-          <FInput label="E-mailadres" type="email" value={data.customer?.email} onChange={v => update('customer.email', v)} />
-          <FInput label="Btw-nummer klant" value={data.customer?.vatNumber} onChange={v => update('customer.vatNumber', v)} />
-        </div>
-        <FTextarea label="Opmerkingen" value={data.customer?.notes} onChange={v => update('customer.notes', v)} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={async () => { const k = await onOpslaanKlant(data.customer); update('customerId', k.id); update('customer', k); }} style={secondaryButton}><Save size={16} /> Klant opslaan</button>
-          <button type="button" onClick={async () => { if (data.customer?.id) await onOpslaanKlant(data.customer); }} style={secondaryButton}><RefreshCw size={16} /> Klant bijwerken</button>
-        </div>
-      </FactuurSectie>
-
-      <FactuurSectie titel="Projectgegevens" icon={MapPin}>
-        <div style={responsiveGrid2}>
-          <FInput label="Werkadres" value={data.project?.workAddress} onChange={v => update('project.workAddress', v)} />
-          <FInput label="Postcode" value={data.project?.workPostalCode} onChange={v => update('project.workPostalCode', v)} />
-          <FInput label="Plaats" value={data.project?.workCity} onChange={v => update('project.workCity', v)} />
-          <FInput label="Uitvoering vanaf" type="date" value={data.project?.deliveryDateFrom} onChange={v => update('project.deliveryDateFrom', v)} />
-          <FInput label="Uitvoering t/m" type="date" value={data.project?.deliveryDateTo} onChange={v => update('project.deliveryDateTo', v)} />
-          <FInput label="Referentie" value={data.project?.reference} onChange={v => update('project.reference', v)} />
-          <FInput label="Werkbonnummer" value={data.project?.workOrderNumber} onChange={v => update('project.workOrderNumber', v)} />
-          <FInput label="Opdrachtgever" value={data.project?.clientName} onChange={v => update('project.clientName', v)} />
-        </div>
-        <FTextarea label="Omschrijving opdracht" value={data.project?.description} onChange={v => update('project.description', v)} />
-        <FTextarea label="Interne opmerkingen" value={data.project?.internalNotes} onChange={v => update('project.internalNotes', v)} />
-      </FactuurSectie>
-        </>
+          <button type="button" onClick={() => setToonFotos(v => !v)} style={{ ...secondaryButton, width: '100%', marginTop: 12, justifyContent: 'space-between' }}>
+            <span>{toonFotos ? 'Fotobijlage verbergen' : `Foto's toevoegen (${(data.photos || []).length})`}</span>
+            <Camera size={17} />
+          </button>
+          {toonFotos && <FactuurFotoSectie photos={data.photos || []} onChange={photos => update('photos', photos)} />}
+        </FactuurSectie>
       )}
 
-      <FactuurSectie titel="Factuurregels" icon={ClipboardList}>
-        <Arbeidsregel onToevoegen={({ uren, tarief, monteurs }) => addItem({ description: `Arbeid monteurs${monteurs > 1 ? ` (${monteurs} monteurs)` : ''}`, quantity: String(Number(uren || 0) * Number(monteurs || 1)), unit: 'uur', unitPriceExVatCents: parseEuroToCents(tarief || '65,00') })} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, margin: '10px 0' }}>
-          <button type="button" onClick={() => addItem()} style={secondaryButton}><Plus size={16} /> Regel toevoegen</button>
-          <select style={factuurInput} onChange={e => { const item = STANDARD_INVOICE_ITEMS.find(x => x.description === e.target.value); if (item) addItem(item); e.target.value = ''; }}>
-            <option value="">Keuzeregel toevoegen</option>
-            {STANDARD_INVOICE_ITEMS.map(i => <option key={i.description}>{i.description}</option>)}
-          </select>
-        </div>
-        <button type="button" onClick={() => update('items', createExampleItems())} style={{ ...secondaryButton, width: '100%', marginBottom: 10 }}><CheckCircle size={16} /> Voorbeeldregels laden</button>
-        <div style={{ display: 'grid', gap: 10 }}>
-          {(data.items || []).map((item, index) => {
-            const line = calculateInvoiceTotals([item]).lines[0];
-            return (
-              <div key={item.id} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 10, background: COLORS.bg }}>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
-                  <GripVertical size={16} color={COLORS.textLight} />
-                  <input value={item.description} onChange={e => setItem(index, { description: e.target.value })} placeholder="Omschrijving" style={{ ...factuurInput, flex: 1 }} />
-                </div>
-                <div style={responsiveGrid2}>
-                  <FInput label="Aantal" type="number" value={item.quantity} onChange={v => setItem(index, { quantity: v })} />
-                  <FSelect label="Eenheid" value={item.unit} onChange={v => setItem(index, { unit: v })} options={INVOICE_UNITS} />
-                  <FInput label="Tarief excl. btw" inputMode="decimal" value={formatEuro(item.unitPriceExVatCents, false)} onChange={v => setItem(index, { unitPriceExVatCents: parseEuroToCents(v) })} />
-                  <FSelect label="Btw" value={item.vatRate} onChange={v => setItem(index, { vatRate: v })} options={VAT_RATES} />
-                  <FInput label="Korting %" type="number" value={item.discountPercentage || 0} onChange={v => setItem(index, { discountPercentage: Number(v) })} />
-                  <div><span style={factuurLabel}>Totaal incl.</span><div style={{ padding: '12px', borderRadius: 10, background: COLORS.white, fontWeight: 900 }}>{formatEuro(line.lineTotalCents)}</div></div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginTop: 8 }}>
-                  <IconButton title="Omhoog" icon={ChevronLeft} onClick={() => moveItem(index, -1)} />
-                  <IconButton title="Omlaag" icon={ChevronRight} onClick={() => moveItem(index, 1)} />
-                  <IconButton title="Dupliceren" icon={Copy} onClick={() => addItem({ ...item, id: makeId('regel') })} />
-                  <IconButton title="Verwijderen" icon={Trash2} danger onClick={() => update('items', data.items.filter((_, i) => i !== index))} />
-                </div>
+      {stap === 2 && (
+        <FactuurSectie titel="Factuurregels" icon={ClipboardList}>
+          <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 12, background: COLORS.surfaceBlue, marginBottom: 12 }}>
+            <FInput label="PVC-materialen bedrag excl. btw" inputMode="decimal" value={pvcBedrag} onChange={v => { setPvcBedrag(v); updatePvcBedrag(v); }} />
+          </div>
+          <button type="button" onClick={() => setRegelToevoegen(regelToevoegen ? '' : 'keuze')} style={{ ...primaryButton, width: '100%', marginBottom: 10 }}><Plus size={17} /> Factuurregel toevoegen</button>
+          {regelToevoegen && (
+            <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 10, background: COLORS.bg, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: 8, marginBottom: 10 }}>
+                <button type="button" onClick={() => setRegelToevoegen('arbeid')} style={secondaryButton}>Arbeid</button>
+                <button type="button" onClick={() => setRegelToevoegen('standaard')} style={secondaryButton}>Standaardregel</button>
+                <button type="button" onClick={voegEigenRegelToe} style={secondaryButton}>Eigen regel</button>
               </div>
-            );
-          })}
+              {regelToevoegen === 'arbeid' && <Arbeidsregel onToevoegen={voegArbeidToe} />}
+              {regelToevoegen === 'standaard' && (
+                <select style={factuurInput} onChange={e => voegStandaardregelToe(e.target.value)} defaultValue="">
+                  <option value="">Kies standaardregel</option>
+                  {STANDARD_INVOICE_ITEMS.map(i => <option key={i.description} value={i.description}>{i.description}</option>)}
+                </select>
+              )}
+            </div>
+          )}
+          <div style={{ display: 'grid', gap: 10 }}>
+            {(data.items || []).map((item, index) => (
+              <FactuurregelKaart
+                key={item.id}
+                item={item}
+                index={index}
+                bewerken={regelEditId === item.id}
+                onBewerk={() => setRegelEditId(regelEditId === item.id ? null : item.id)}
+                onChange={patch => setItem(index, patch)}
+                onDupliceer={() => dupliceerItem(item)}
+                onVerwijder={() => verwijderItem(index)}
+              />
+            ))}
+          </div>
+          <TotaalBox totalen={totalen} />
+        </FactuurSectie>
+      )}
+
+      {stap === 3 && (
+        <FactuurSectie titel="Controle" icon={CheckCircle}>
+          <div style={responsiveGrid2}>
+            <FInput label="Factuurnummer" value={data.invoiceNumber} onChange={v => update('invoiceNumber', v)} disabled={definitief} />
+            <FInput label="Factuurdatum" type="date" value={data.invoiceDate} onChange={v => { update('invoiceDate', v); update('dueDate', addDaysIso(v, data.paymentTermDays || bedrijf.defaultPaymentTerm)); }} />
+            <FInput label="Vervaldatum" type="date" value={data.dueDate} onChange={v => update('dueDate', v)} />
+            <FInput label="Betaaltermijn in dagen" type="number" value={data.paymentTermDays} onChange={v => { update('paymentTermDays', Number(v)); update('dueDate', addDaysIso(data.invoiceDate, Number(v))); }} />
+            <FSelect label="Status" value={data.status} onChange={v => update('status', v)} options={INVOICE_STATUSES} />
+            <FSelect label="Betaalstatus" value={data.paymentStatus} onChange={v => update('paymentStatus', v)} options={PAYMENT_STATUSES} />
+          </div>
+          {basisFouten.length > 0 && (
+            <div style={{ marginTop: 12, border: `1px solid ${COLORS.red}`, borderRadius: 14, padding: 12, background: '#FFF4F2', color: COLORS.red, fontWeight: 800 }}>
+              {basisFouten.map(f => <div key={f}>{f}</div>)}
+            </div>
+          )}
+          <TotaalBox totalen={totalen} />
+        </FactuurSectie>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <button type="button" disabled={stap === 0} onClick={() => setStap(Math.max(0, stap - 1))} style={{ ...secondaryButton, opacity: stap === 0 ? 0.45 : 1 }}>Vorige</button>
+        <button type="button" disabled={stap === 3} onClick={() => setStap(Math.min(3, stap + 1))} style={{ ...secondaryButton, opacity: stap === 3 ? 0.45 : 1 }}>Volgende</button>
+      </div>
+
+      <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 160, padding: '10px 12px max(12px, env(safe-area-inset-bottom))', background: 'rgba(255,255,255,0.97)', borderTop: `1px solid ${COLORS.border}`, boxShadow: '0 -12px 28px rgba(15,45,92,0.12)' }}>
+        <div style={{ maxWidth: 980, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+          <button type="button" disabled={bezig} onClick={() => save()} style={secondaryButton}><Save size={16} /> Opslaan</button>
+          <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={16} /> PDF bekijken</button>
+          <button type="button" disabled={!kanDefinitief || bezig} onClick={maakDefinitief} style={{ ...primaryButton, opacity: !kanDefinitief || bezig ? 0.48 : 1 }}><CheckCircle size={16} /> Definitief maken</button>
         </div>
-        <TotaalBox totalen={totalen} />
-      </FactuurSectie>
-
-      <button
-        type="button"
-        onClick={() => setToonFotos(v => !v)}
-        style={{ ...secondaryButton, width: '100%', justifyContent: 'space-between' }}
-      >
-        <span>{toonFotos ? 'Fotobijlage verbergen' : `Foto's toevoegen (${(data.photos || []).length})`}</span>
-        <Camera size={17} />
-      </button>
-
-      {toonFotos && <FactuurFotoSectie photos={data.photos || []} onChange={photos => update('photos', photos)} />}
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, background: COLORS.white, border: `1px solid ${COLORS.border}`, padding: 12, borderRadius: 16, boxShadow: COLORS.shadowSoft, marginTop: 14, marginBottom: 24 }}>
-        <button type="button" disabled={bezig} onClick={() => save()} style={primaryButton}><Save size={17} /> Opslaan</button>
-        <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={17} /> PDF bekijken</button>
-        <button type="button" onClick={maakDefinitief} style={{ ...primaryButton, background: COLORS.blue }}><CheckCircle size={17} /> Definitief maken</button>
       </div>
     </div>
   );
@@ -5508,8 +5493,8 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
 
 const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 };
 const responsiveGrid2 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10 };
-const primaryButton = { border: 'none', borderRadius: 12, padding: '12px 10px', background: COLORS.accent, color: COLORS.white, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer' };
-const secondaryButton = { border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 10px', background: COLORS.white, color: COLORS.blue, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer' };
+const primaryButton = { border: 'none', borderRadius: 12, padding: '12px 10px', background: COLORS.blue, color: COLORS.white, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer', minWidth: 0, lineHeight: 1.15 };
+const secondaryButton = { border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 10px', background: COLORS.white, color: COLORS.blue, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer', minWidth: 0, lineHeight: 1.15 };
 
 function setDeepValue(obj, path, value) {
   const copy = Array.isArray(obj) ? [...obj] : { ...obj };
@@ -5524,7 +5509,7 @@ function setDeepValue(obj, path, value) {
 }
 
 function FactuurSectie({ titel, icon: Icon, children }) {
-  return <section style={factuurCard}><h2 style={{ margin: '0 0 12px', color: COLORS.blue, fontSize: 17, fontWeight: 950, display: 'flex', alignItems: 'center', gap: 8 }}><Icon size={18} /> {titel}</h2>{children}</section>;
+  return <section style={{ ...factuurCard, width: '100%' }}><h2 style={{ margin: '0 0 12px', color: COLORS.blue, fontSize: 17, fontWeight: 950, display: 'flex', alignItems: 'center', gap: 8 }}><Icon size={18} /> {titel}</h2>{children}</section>;
 }
 
 function FInput({ label, value, onChange, type = 'text', disabled, inputMode }) {
@@ -5539,20 +5524,64 @@ function FSelect({ label, value, onChange, options }) {
   return <label><span style={factuurLabel}>{label}</span><select value={value ?? ''} onChange={e => onChange(e.target.value)} style={factuurInput}>{options.map(o => <option key={o} value={o}>{o}</option>)}</select></label>;
 }
 
+function FactuurregelKaart({ item, bewerken, onBewerk, onChange, onDupliceer, onVerwijder }) {
+  const line = calculateInvoiceTotals([item]).lines[0];
+  return (
+    <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 12, background: COLORS.white, boxShadow: COLORS.shadowSoft }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: COLORS.blue, fontWeight: 950, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.description || 'Nieuwe factuurregel'}</div>
+          <div style={{ marginTop: 5, color: COLORS.textLight, fontSize: 12, fontWeight: 750 }}>{String(item.quantity || '0').replace('.', ',')} {item.unit || 'post'} x {formatEuro(item.unitPriceExVatCents)}</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ color: COLORS.textLight, fontSize: 11, fontWeight: 800 }}>Incl. btw</div>
+          <div style={{ color: COLORS.text, fontWeight: 950 }}>{formatEuro(line.lineTotalCents)}</div>
+        </div>
+      </div>
+      <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
+        <div style={{ borderRadius: 12, background: COLORS.bg, padding: 9 }}><span style={{ color: COLORS.textLight, fontWeight: 800 }}>Excl. btw</span><br /><strong>{formatEuro(line.lineSubtotalCents)}</strong></div>
+        <div style={{ borderRadius: 12, background: COLORS.bg, padding: 9 }}><span style={{ color: COLORS.textLight, fontWeight: 800 }}>Btw</span><br /><strong>{item.vatRate === 'verlegd' ? 'Verlegd' : `${item.vatRate}%`}</strong></div>
+      </div>
+      {bewerken && (
+        <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+          <FInput label="Omschrijving" value={item.description} onChange={v => onChange({ description: v })} />
+          <div style={responsiveGrid2}>
+            <FInput label="Aantal" type="number" value={item.quantity} onChange={v => onChange({ quantity: v })} />
+            <FSelect label="Eenheid" value={item.unit} onChange={v => onChange({ unit: v })} options={INVOICE_UNITS} />
+            <FInput label="Tarief excl. btw" inputMode="decimal" value={formatEuro(item.unitPriceExVatCents, false)} onChange={v => onChange({ unitPriceExVatCents: parseEuroToCents(v) })} />
+            <FSelect label="Btw" value={item.vatRate} onChange={v => onChange({ vatRate: v })} options={VAT_RATES} />
+            <FInput label="Korting %" type="number" value={item.discountPercentage || 0} onChange={v => onChange({ discountPercentage: Number(v) })} />
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 10 }}>
+        <button type="button" onClick={onBewerk} style={secondaryButton}><Edit2 size={15} /> {bewerken ? 'Klaar' : 'Bewerken'}</button>
+        <button type="button" onClick={onDupliceer} style={secondaryButton}><Copy size={15} /> Dupliceren</button>
+        <button type="button" onClick={onVerwijder} style={{ ...secondaryButton, color: COLORS.red }}><Trash2 size={15} /> Verwijderen</button>
+      </div>
+    </div>
+  );
+}
+
 function Arbeidsregel({ onToevoegen }) {
-  const [uren, setUren] = useState('32');
-  const [tarief, setTarief] = useState('65,00');
   const [monteurs, setMonteurs] = useState('1');
-  const totaal = Math.round((Number(String(uren).replace(',', '.')) || 0) * (Number(monteurs) || 1) * parseEuroToCents(tarief));
+  const [werkdagen, setWerkdagen] = useState('4');
+  const [urenPerDag, setUrenPerDag] = useState('8');
+  const [tarief, setTarief] = useState('65,00');
+  const totaalUren = Math.round(((Number(String(monteurs).replace(',', '.')) || 0) * (Number(String(werkdagen).replace(',', '.')) || 0) * (Number(String(urenPerDag).replace(',', '.')) || 0)) * 100) / 100;
+  const totaal = Math.round(totaalUren * parseEuroToCents(tarief));
   return (
     <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 10, background: COLORS.surfaceBlue, marginBottom: 10 }}>
       <div style={{ fontWeight: 900, color: COLORS.blue, marginBottom: 8 }}>Snelle arbeidsregel</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-        <FInput label="Uren" type="number" value={uren} onChange={setUren} />
-        <FInput label="Uurtarief excl." inputMode="decimal" value={tarief} onChange={setTarief} />
-        <FInput label="Monteurs" type="number" value={monteurs} onChange={setMonteurs} />
+      <div style={responsiveGrid2}>
+        <FInput label="Aantal monteurs" type="number" value={monteurs} onChange={setMonteurs} />
+        <FInput label="Aantal werkdagen" type="number" value={werkdagen} onChange={setWerkdagen} />
+        <FInput label="Uren per dag" type="number" value={urenPerDag} onChange={setUrenPerDag} />
+        <FInput label="Uurtarief excl. btw" inputMode="decimal" value={tarief} onChange={setTarief} />
+        <div><span style={factuurLabel}>Totaal uren</span><div style={{ padding: 12, borderRadius: 10, background: COLORS.white, fontWeight: 950 }}>{String(totaalUren).replace('.', ',')} uur</div></div>
+        <div><span style={factuurLabel}>Automatisch totaal</span><div style={{ padding: 12, borderRadius: 10, background: COLORS.white, fontWeight: 950 }}>{formatEuro(totaal)} excl.</div></div>
       </div>
-      <button type="button" onClick={() => onToevoegen({ uren, tarief, monteurs })} style={{ ...secondaryButton, width: '100%', marginTop: 8 }}>Arbeid toevoegen - {formatEuro(totaal)} excl.</button>
+      <button type="button" onClick={() => onToevoegen({ totaalUren, tarief, monteurs, werkdagen, urenPerDag })} style={{ ...secondaryButton, width: '100%', marginTop: 8 }}>Arbeid toevoegen</button>
     </div>
   );
 }
