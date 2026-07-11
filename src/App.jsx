@@ -1,5 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, Camera, Siren, LayoutDashboard, CloudSun, Phone, Navigation, MessageCircle, Image as ImageIcon, CreditCard } from 'lucide-react';
+import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, Camera, Siren, LayoutDashboard, CloudSun, Phone, Navigation, MessageCircle, Image as ImageIcon, CreditCard, FileText, Eye, Copy, Save, Share2, Upload, GripVertical, CheckCircle, Ban, RefreshCw, Send } from 'lucide-react';
+import {
+  DEFAULT_COMPANY,
+  INVOICE_STATUSES,
+  PAYMENT_STATUSES,
+  INVOICE_UNITS,
+  VAT_RATES,
+  PHOTO_CATEGORIES,
+  STANDARD_INVOICE_ITEMS,
+  INVOICE_STORAGE_KEYS,
+  addDaysIso,
+  calculateInvoiceTotals,
+  createEmptyInvoice,
+  createExampleItems,
+  formatDateNl,
+  formatEuro,
+  formatLongDateNl,
+  immutableSnapshot,
+  makeId,
+  normalizeInvoiceItem,
+  parseEuroToCents,
+  validateInvoice,
+} from './invoiceCore.js';
 
 // =================== KLEURENPALET OVERBETUWE ===================
 const COLORS = {
@@ -547,6 +569,264 @@ async function bewaarInstelling(id, waarde) {
   schrijfJson(STORAGE_KEYS.instellingen, instellingen);
 }
 
+// =================== FACTUUR OPSLAG ===================
+async function laadFactuurData() {
+  const lokaalFacturen = leesJson(INVOICE_STORAGE_KEYS.invoices, []);
+  const lokaalKlanten = leesJson(INVOICE_STORAGE_KEYS.customers, []);
+  const lokaalBedrijf = leesJson(INVOICE_STORAGE_KEYS.company, DEFAULT_COMPANY);
+  try {
+    const [remoteFacturen, remoteKlanten, remoteBedrijf] = await Promise.all([
+      supabaseRequest('invoices?select=*&order=created_at.desc'),
+      supabaseRequest('customers?select=*&order=created_at.desc'),
+      supabaseRequest('companies?select=*&limit=1'),
+    ]);
+    const facturen = Array.isArray(remoteFacturen) && remoteFacturen.length
+      ? remoteFacturen.map(vanDbFactuur)
+      : lokaalFacturen;
+    const klanten = Array.isArray(remoteKlanten) && remoteKlanten.length
+      ? remoteKlanten.map(vanDbKlant)
+      : lokaalKlanten;
+    const bedrijf = Array.isArray(remoteBedrijf) && remoteBedrijf[0]
+      ? vanDbBedrijf(remoteBedrijf[0])
+      : lokaalBedrijf;
+    schrijfJson(INVOICE_STORAGE_KEYS.invoices, facturen);
+    schrijfJson(INVOICE_STORAGE_KEYS.customers, klanten);
+    schrijfJson(INVOICE_STORAGE_KEYS.company, bedrijf);
+    return { facturen, klanten, bedrijf, online: true };
+  } catch (e) {
+    console.warn('Factuurdata lokaal geladen; Supabase-tabellen zijn mogelijk nog niet aangemaakt.', e);
+    return { facturen: lokaalFacturen, klanten: lokaalKlanten, bedrijf: lokaalBedrijf, online: false };
+  }
+}
+
+function vanDbBedrijf(row) {
+  return {
+    ...DEFAULT_COMPANY,
+    id: row.id,
+    legalName: row.legal_name || DEFAULT_COMPANY.legalName,
+    tradeName: row.trade_name || DEFAULT_COMPANY.tradeName,
+    address: row.address || '',
+    postalCode: row.postal_code || '',
+    city: row.city || '',
+    phone: row.phone || DEFAULT_COMPANY.phone,
+    email: row.email || DEFAULT_COMPANY.email,
+    website: row.website || DEFAULT_COMPANY.website,
+    kvkNumber: row.kvk_number || DEFAULT_COMPANY.kvkNumber,
+    vatNumber: row.vat_number || DEFAULT_COMPANY.vatNumber,
+    iban: row.iban || DEFAULT_COMPANY.iban,
+    bic: row.bic || '',
+    defaultPaymentTerm: row.default_payment_term || DEFAULT_COMPANY.defaultPaymentTerm,
+    defaultVatRate: row.default_vat_rate || DEFAULT_COMPANY.defaultVatRate,
+    defaultHourlyRateCents: row.default_hourly_rate_cents || DEFAULT_COMPANY.defaultHourlyRateCents,
+    logoUrl: row.logo_url || DEFAULT_COMPANY.logoUrl,
+    reviewQrUrl: row.review_qr_url || DEFAULT_COMPANY.reviewQrUrl,
+    termsUrl: row.terms_url || '',
+    paymentTermsUrl: row.payment_terms_url || '',
+    footerText: row.footer_text || DEFAULT_COMPANY.footerText,
+  };
+}
+
+function naarDbBedrijf(company) {
+  return {
+    legal_name: company.legalName,
+    trade_name: company.tradeName,
+    address: company.address,
+    postal_code: company.postalCode,
+    city: company.city,
+    phone: company.phone,
+    email: company.email,
+    website: company.website,
+    kvk_number: company.kvkNumber,
+    vat_number: company.vatNumber,
+    iban: company.iban,
+    bic: company.bic || null,
+    default_payment_term: Number(company.defaultPaymentTerm || 8),
+    default_vat_rate: String(company.defaultVatRate || '21'),
+    default_hourly_rate_cents: Number(company.defaultHourlyRateCents || 6500),
+    logo_url: company.logoUrl || DEFAULT_COMPANY.logoUrl,
+    review_qr_url: company.reviewQrUrl || DEFAULT_COMPANY.reviewQrUrl,
+    terms_url: company.termsUrl || null,
+    payment_terms_url: company.paymentTermsUrl || null,
+    footer_text: company.footerText || DEFAULT_COMPANY.footerText,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function vanDbKlant(row) {
+  return {
+    id: row.id,
+    companyName: row.company_name || '',
+    contactName: row.contact_name || '',
+    address: row.address || '',
+    postalCode: row.postal_code || '',
+    city: row.city || '',
+    phone: row.phone || '',
+    email: row.email || '',
+    customerNumber: row.customer_number || '',
+    vatNumber: row.vat_number || '',
+    notes: row.notes || '',
+  };
+}
+
+function naarDbKlant(customer) {
+  return {
+    id: customer.id,
+    company_name: customer.companyName,
+    contact_name: customer.contactName,
+    address: customer.address,
+    postal_code: customer.postalCode,
+    city: customer.city,
+    phone: customer.phone,
+    email: customer.email,
+    customer_number: customer.customerNumber,
+    vat_number: customer.vatNumber || null,
+    notes: customer.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function vanDbFactuur(row) {
+  const payload = row.payload || {};
+  return {
+    ...payload,
+    id: row.id,
+    invoiceNumber: row.invoice_number || payload.invoiceNumber,
+    invoiceYear: row.invoice_year || payload.invoiceYear,
+    sequenceNumber: row.sequence_number || payload.sequenceNumber,
+    status: row.status || payload.status || 'Concept',
+    paymentStatus: row.payment_status || payload.paymentStatus || 'Open',
+    subtotalExVatCents: row.subtotal_ex_vat_cents || payload.subtotalExVatCents || 0,
+    vatAmountCents: row.vat_amount_cents || payload.vatAmountCents || 0,
+    totalIncVatCents: row.total_inc_vat_cents || payload.totalIncVatCents || 0,
+    finalizedAt: row.finalized_at || payload.finalizedAt || '',
+    paidAt: row.paid_at || payload.paidAt || '',
+    createdAt: row.created_at || payload.createdAt,
+    updatedAt: row.updated_at || payload.updatedAt,
+  };
+}
+
+function naarDbFactuur(invoice) {
+  const totals = calculateInvoiceTotals(invoice.items || []);
+  return {
+    id: invoice.id,
+    invoice_number: invoice.invoiceNumber,
+    invoice_year: invoice.invoiceYear,
+    sequence_number: invoice.sequenceNumber,
+    customer_id: invoice.customerId || null,
+    invoice_date: invoice.invoiceDate || null,
+    due_date: invoice.dueDate || null,
+    delivery_date_from: invoice.project?.deliveryDateFrom || null,
+    delivery_date_to: invoice.project?.deliveryDateTo || null,
+    work_address: invoice.project?.workAddress || null,
+    work_postal_code: invoice.project?.workPostalCode || null,
+    work_city: invoice.project?.workCity || null,
+    reference: invoice.project?.reference || null,
+    work_order_number: invoice.project?.workOrderNumber || null,
+    client_name: invoice.project?.clientName || null,
+    description: invoice.project?.description || null,
+    status: invoice.status || 'Concept',
+    payment_status: invoice.paymentStatus || 'Open',
+    subtotal_ex_vat_cents: totals.subtotalExVatCents,
+    vat_amount_cents: totals.vatAmountCents,
+    total_inc_vat_cents: totals.totalIncVatCents,
+    pdf_url: invoice.pdfUrl || null,
+    finalized_at: invoice.finalizedAt || null,
+    paid_at: invoice.paidAt || null,
+    payload: { ...invoice, ...totals },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function bewaarFactuurSet(facturen) {
+  schrijfJson(INVOICE_STORAGE_KEYS.invoices, facturen);
+}
+
+async function bewaarFactuurDb(invoice) {
+  const saved = { ...invoice, updatedAt: new Date().toISOString() };
+  const lokaal = leesJson(INVOICE_STORAGE_KEYS.invoices, []);
+  const nieuw = lokaal.some(f => f.id === saved.id) ? lokaal.map(f => f.id === saved.id ? saved : f) : [saved, ...lokaal];
+  schrijfJson(INVOICE_STORAGE_KEYS.invoices, nieuw);
+  try {
+    const rows = await supabaseRequest('invoices?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(naarDbFactuur(saved)),
+    });
+    return rows && rows[0] ? vanDbFactuur(rows[0]) : saved;
+  } catch (e) {
+    console.warn('Factuur alleen lokaal opgeslagen.', e);
+    return saved;
+  }
+}
+
+async function verwijderFactuurDb(id) {
+  const lokaal = leesJson(INVOICE_STORAGE_KEYS.invoices, []);
+  schrijfJson(INVOICE_STORAGE_KEYS.invoices, lokaal.filter(f => f.id !== id));
+  try {
+    await supabaseRequest(`invoices?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+  } catch (e) {
+    console.warn('Factuur lokaal verwijderd; Supabase verwijderen faalde.', e);
+  }
+}
+
+async function bewaarKlantDb(customer) {
+  const saved = { ...customer, id: customer.id || makeId('klant') };
+  const lokaal = leesJson(INVOICE_STORAGE_KEYS.customers, []);
+  const nieuw = lokaal.some(k => k.id === saved.id) ? lokaal.map(k => k.id === saved.id ? saved : k) : [saved, ...lokaal];
+  schrijfJson(INVOICE_STORAGE_KEYS.customers, nieuw);
+  try {
+    const rows = await supabaseRequest('customers?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(naarDbKlant(saved)),
+    });
+    return rows && rows[0] ? vanDbKlant(rows[0]) : saved;
+  } catch (e) {
+    console.warn('Klant alleen lokaal opgeslagen.', e);
+    return saved;
+  }
+}
+
+async function bewaarBedrijfDb(company) {
+  const saved = { ...DEFAULT_COMPANY, ...company };
+  schrijfJson(INVOICE_STORAGE_KEYS.company, saved);
+  try {
+    const body = { ...naarDbBedrijf(saved), id: saved.id || '00000000-0000-0000-0000-000000000001' };
+    const rows = await supabaseRequest('companies?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(body),
+    });
+    return rows && rows[0] ? vanDbBedrijf(rows[0]) : saved;
+  } catch (e) {
+    console.warn('Bedrijfsinstellingen alleen lokaal opgeslagen.', e);
+    return saved;
+  }
+}
+
+async function maakNieuweFactuur(facturen, bedrijf) {
+  const lokaal = createEmptyInvoice(facturen, bedrijf);
+  try {
+    const rows = await supabaseRequest('rpc/next_invoice_number', {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ p_year: new Date().getFullYear() }),
+    });
+    const nummer = Array.isArray(rows) ? rows[0] : rows;
+    if (nummer?.invoice_number) {
+      return {
+        ...lokaal,
+        invoiceNumber: nummer.invoice_number,
+        invoiceYear: nummer.invoice_year,
+        sequenceNumber: nummer.sequence_number,
+      };
+    }
+  } catch (e) {
+    console.warn('Supabase factuurnummerfunctie niet beschikbaar; lokale nummering gebruikt.', e);
+  }
+  return lokaal;
+}
+
 // =================== HOOFDCOMPONENT ===================
 export default function OverbetuweApp() {
   const [scherm, setScherm] = useState('home');
@@ -557,6 +837,12 @@ export default function OverbetuweApp() {
   const [gekozenAdres, setGekozenAdres] = useState(null);
   const [voorIngesteldeDatum, setVoorIngesteldeDatum] = useState(null);
   const [alleFilter, setAlleFilter] = useState('alles'); // initieel filter voor AlleStoringen scherm
+  const [facturen, setFacturen] = useState([]);
+  const [klanten, setKlanten] = useState([]);
+  const [bedrijf, setBedrijf] = useState(() => leesJson(INVOICE_STORAGE_KEYS.company, DEFAULT_COMPANY));
+  const [bewerkenFactuur, setBewerkenFactuur] = useState(null);
+  const [factuurSubScherm, setFactuurSubScherm] = useState('overzicht');
+  const [factuurOnline, setFactuurOnline] = useState(false);
 
   useEffect(() => {
     setLaden(true);
@@ -586,6 +872,15 @@ export default function OverbetuweApp() {
         .catch(e => console.warn('Bijwerken mislukt', e));
     }, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    laadFactuurData().then(({ facturen, klanten, bedrijf, online }) => {
+      setFacturen(facturen);
+      setKlanten(klanten);
+      setBedrijf(bedrijf);
+      setFactuurOnline(online);
+    });
   }, []);
 
   const opslaanStoring = async (storing) => {
@@ -667,6 +962,29 @@ export default function OverbetuweApp() {
     } catch (e) {
       alert('Verwijderen mislukt: ' + e.message);
     }
+  };
+
+  const opslaanFactuur = async (factuur) => {
+    const opgeslagen = await bewaarFactuurDb(factuur);
+    setFacturen(huidig => huidig.some(f => f.id === opgeslagen.id) ? huidig.map(f => f.id === opgeslagen.id ? opgeslagen : f) : [opgeslagen, ...huidig]);
+    return opgeslagen;
+  };
+
+  const verwijderFactuur = async (id) => {
+    await verwijderFactuurDb(id);
+    setFacturen(huidig => huidig.filter(f => f.id !== id));
+  };
+
+  const opslaanKlant = async (klant) => {
+    const opgeslagen = await bewaarKlantDb(klant);
+    setKlanten(huidig => huidig.some(k => k.id === opgeslagen.id) ? huidig.map(k => k.id === opgeslagen.id ? opgeslagen : k) : [opgeslagen, ...huidig]);
+    return opgeslagen;
+  };
+
+  const opslaanBedrijf = async (gegevens) => {
+    const opgeslagen = await bewaarBedrijfDb(gegevens);
+    setBedrijf(opgeslagen);
+    return opgeslagen;
   };
 
   if (laden) {
@@ -768,6 +1086,23 @@ export default function OverbetuweApp() {
           onBewerk={(s) => { setBewerkenStoring(s); setScherm('nieuw'); }}
           onVerwijder={verwijderStoring}
           initieelFilter={alleFilter}
+        />
+      )}
+
+      {scherm === 'facturen' && (
+        <FacturenModule
+          facturen={facturen}
+          klanten={klanten}
+          bedrijf={bedrijf}
+          online={factuurOnline}
+          subScherm={factuurSubScherm}
+          setSubScherm={setFactuurSubScherm}
+          bewerkenFactuur={bewerkenFactuur}
+          setBewerkenFactuur={setBewerkenFactuur}
+          onOpslaan={opslaanFactuur}
+          onVerwijder={verwijderFactuur}
+          onOpslaanKlant={opslaanKlant}
+          onOpslaanBedrijf={opslaanBedrijf}
         />
       )}
 
@@ -877,7 +1212,7 @@ function BottomNav({ actief, gaNaar }) {
     { id: 'home', label: 'Home', icon: Home },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
     { id: 'alle', label: 'Storingen', icon: ClipboardList },
-    { id: 'reparaties', label: 'Reparaties', icon: Wrench },
+    { id: 'facturen', label: 'Facturen', icon: FileText },
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
   ];
   return (
@@ -4714,6 +5049,692 @@ function AlleStoringen({ storingen, onBewerk, onVerwijder, initieelFilter }) {
       ))}
     </div>
   );
+}
+
+// =================== FACTUREN MODULE ===================
+const factuurCard = { background: COLORS.white, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 14, boxShadow: COLORS.shadowSoft };
+const factuurInput = { width: '100%', boxSizing: 'border-box', padding: '12px 12px', border: `1px solid ${COLORS.borderStrong}`, borderRadius: 10, fontSize: 15, background: COLORS.white, color: COLORS.text };
+const factuurLabel = { display: 'block', fontSize: 11, fontWeight: 850, color: COLORS.textLight, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.3 };
+
+function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubScherm, bewerkenFactuur, setBewerkenFactuur, onOpslaan, onVerwijder, onOpslaanKlant, onOpslaanBedrijf }) {
+  const openNieuweFactuur = async () => {
+    setBewerkenFactuur(await maakNieuweFactuur(facturen, bedrijf));
+    setSubScherm('formulier');
+  };
+  const openFactuur = (factuur, scherm = 'bekijken') => {
+    setBewerkenFactuur(factuur);
+    setSubScherm(scherm);
+  };
+  const terug = () => {
+    setBewerkenFactuur(null);
+    setSubScherm('overzicht');
+  };
+
+  return (
+    <main style={{ padding: '16px 14px 96px', maxWidth: 980, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+        <div>
+          <h1 style={{ margin: 0, color: COLORS.blue, fontSize: 24, fontWeight: 950 }}>Facturen</h1>
+          <p style={{ margin: '4px 0 0', color: COLORS.textLight, fontSize: 12 }}>{online ? 'Verbonden met Supabase' : 'Lokale modus - voer de migratie uit voor cloudopslag'}</p>
+        </div>
+        {subScherm !== 'overzicht' ? (
+          <button type="button" onClick={terug} style={{ border: `1px solid ${COLORS.border}`, background: COLORS.white, borderRadius: 12, padding: '10px 12px', fontWeight: 800, color: COLORS.blue }}>Terug</button>
+        ) : (
+          <button type="button" onClick={openNieuweFactuur} style={{ border: 'none', background: COLORS.accent, color: COLORS.white, borderRadius: 14, padding: '12px 14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}><Plus size={18} /> Nieuw</button>
+        )}
+      </div>
+
+      {subScherm === 'overzicht' && (
+        <FacturenOverzicht
+          facturen={facturen}
+          bedrijf={bedrijf}
+          onNieuw={openNieuweFactuur}
+          onBekijk={(f) => openFactuur(f, 'bekijken')}
+          onBewerk={(f) => openFactuur(f, 'formulier')}
+          onPreview={(f) => openFactuur(f, 'preview')}
+          onVerwijder={onVerwijder}
+          onDupliceer={async (f) => {
+            const kopie = await maakNieuweFactuur(facturen, bedrijf);
+            const nieuw = { ...JSON.parse(JSON.stringify(f)), id: kopie.id, invoiceNumber: kopie.invoiceNumber, invoiceYear: kopie.invoiceYear, sequenceNumber: kopie.sequenceNumber, status: 'Concept', paymentStatus: 'Open', finalizedAt: '', paidAt: '', finalizedPdfDataUrl: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+            const opgeslagen = await onOpslaan(nieuw);
+            openFactuur(opgeslagen, 'formulier');
+          }}
+        />
+      )}
+
+      {subScherm === 'formulier' && bewerkenFactuur && (
+        <FactuurFormulier
+          factuur={bewerkenFactuur}
+          facturen={facturen}
+          klanten={klanten}
+          bedrijf={bedrijf}
+          onOpslaan={async (f) => {
+            const opgeslagen = await onOpslaan(f);
+            setBewerkenFactuur(opgeslagen);
+            return opgeslagen;
+          }}
+          onOpslaanKlant={onOpslaanKlant}
+          onPreview={(f) => { setBewerkenFactuur(f); setSubScherm('preview'); }}
+        />
+      )}
+
+      {subScherm === 'bekijken' && bewerkenFactuur && (
+        <FactuurBekijken
+          factuur={bewerkenFactuur}
+          bedrijf={bedrijf}
+          onBewerk={() => setSubScherm('formulier')}
+          onPreview={() => setSubScherm('preview')}
+          onOpslaan={async (f) => {
+            const opgeslagen = await onOpslaan(f);
+            setBewerkenFactuur(opgeslagen);
+          }}
+        />
+      )}
+
+      {subScherm === 'preview' && bewerkenFactuur && (
+        <FactuurPdfPreview factuur={bewerkenFactuur} bedrijf={bedrijf} onOpslaan={async (f) => { const opgeslagen = await onOpslaan(f); setBewerkenFactuur(opgeslagen); }} />
+      )}
+
+      {subScherm === 'bedrijf' && (
+        <BedrijfsInstellingen bedrijf={bedrijf} onOpslaan={onOpslaanBedrijf} />
+      )}
+
+      {subScherm === 'overzicht' && (
+        <button type="button" onClick={() => setSubScherm('bedrijf')} style={{ marginTop: 14, width: '100%', ...factuurCard, color: COLORS.blue, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Settings size={18} /> Bedrijfsinstellingen
+        </button>
+      )}
+    </main>
+  );
+}
+
+function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onPreview, onVerwijder, onDupliceer }) {
+  const [zoek, setZoek] = useState('');
+  const [status, setStatus] = useState('Alle');
+  const [betaling, setBetaling] = useState('Alle');
+  const gefilterd = facturen.filter(f => {
+    const tekst = `${f.invoiceNumber || ''} ${f.customer?.companyName || ''} ${f.customer?.contactName || ''} ${f.invoiceDate || ''}`.toLowerCase();
+    return (!zoek || tekst.includes(zoek.toLowerCase())) && (status === 'Alle' || f.status === status) && (betaling === 'Alle' || f.paymentStatus === betaling);
+  });
+  const kaarten = useMemo(() => {
+    const open = facturen.filter(f => !['Betaald', 'Geannuleerd'].includes(f.paymentStatus)).reduce((s, f) => s + calculateInvoiceTotals(f.items || []).totalIncVatCents, 0);
+    return [
+      { label: 'Openstaand bedrag', value: formatEuro(open), color: COLORS.blue },
+      { label: 'Betaalde facturen', value: facturen.filter(f => f.paymentStatus === 'Betaald').length, color: COLORS.green },
+      { label: 'Vervallen facturen', value: facturen.filter(f => f.status === 'Vervallen' || f.paymentStatus === 'Te laat').length, color: COLORS.red },
+      { label: 'Conceptfacturen', value: facturen.filter(f => f.status === 'Concept').length, color: COLORS.accent },
+    ];
+  }, [facturen]);
+
+  return (
+    <div>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+        {kaarten.map(k => <div key={k.label} style={factuurCard}><div style={{ color: k.color, fontSize: 18, fontWeight: 950 }}>{k.value}</div><div style={{ marginTop: 4, color: COLORS.textLight, fontSize: 12, fontWeight: 750 }}>{k.label}</div></div>)}
+      </section>
+
+      <section style={{ ...factuurCard, marginTop: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 9 }}>
+          <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoeken op factuurnummer, klant of datum" style={factuurInput} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
+            <select value={status} onChange={e => setStatus(e.target.value)} style={factuurInput}><option>Alle</option>{INVOICE_STATUSES.map(s => <option key={s}>{s}</option>)}</select>
+            <select value={betaling} onChange={e => setBetaling(e.target.value)} style={factuurInput}><option>Alle</option>{PAYMENT_STATUSES.map(s => <option key={s}>{s}</option>)}</select>
+          </div>
+        </div>
+      </section>
+
+      <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+        {gefilterd.length === 0 ? (
+          <div style={{ ...factuurCard, textAlign: 'center', color: COLORS.textLight }}>
+            Nog geen facturen. <button type="button" onClick={onNieuw} style={{ border: 'none', color: COLORS.blueLight, background: 'transparent', fontWeight: 900 }}>Maak de eerste factuur</button>
+          </div>
+        ) : gefilterd.map(f => {
+          const totalen = calculateInvoiceTotals(f.items || []);
+          return (
+            <article key={f.id} style={factuurCard}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: COLORS.blue, fontWeight: 950, fontSize: 16 }}>{f.invoiceNumber}</div>
+                  <div style={{ marginTop: 3, color: COLORS.text, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.customer?.companyName || f.customer?.contactName || 'Klant onbekend'}</div>
+                  <div style={{ marginTop: 4, color: COLORS.textLight, fontSize: 12 }}>{formatDateNl(f.invoiceDate)} - vervalt {formatDateNl(f.dueDate)}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 950, color: COLORS.text }}>{formatEuro(totalen.totalIncVatCents)}</div>
+                  <StatusBadge status={f.status} />
+                  <StatusBadge status={f.paymentStatus} small />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginTop: 12 }}>
+                <IconButton title="Bekijken" icon={Eye} onClick={() => onBekijk(f)} />
+                <IconButton title="Bewerken" icon={Edit2} onClick={() => onBewerk(f)} />
+                <IconButton title="Dupliceren" icon={Copy} onClick={() => onDupliceer(f)} />
+                <IconButton title="PDF" icon={Download} onClick={() => onPreview(f)} />
+                <IconButton title="Verwijderen" icon={Trash2} danger onClick={() => { if (confirm('Factuur verwijderen?')) onVerwijder(f.id); }} />
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status, small }) {
+  const kleur = status === 'Betaald' ? COLORS.green : status === 'Vervallen' || status === 'Te laat' ? COLORS.red : status === 'Concept' ? COLORS.accent : COLORS.blue;
+  return <span style={{ display: 'inline-block', marginTop: 5, marginLeft: 4, borderRadius: 999, background: `${kleur}16`, color: kleur, padding: small ? '3px 7px' : '4px 8px', fontSize: small ? 10 : 11, fontWeight: 850 }}>{status}</span>;
+}
+
+function IconButton({ title, icon: Icon, onClick, danger }) {
+  return <button type="button" title={title} onClick={onClick} style={{ border: `1px solid ${COLORS.border}`, background: danger ? '#FFF4F2' : COLORS.bg, color: danger ? COLORS.red : COLORS.blue, borderRadius: 12, padding: '9px 4px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Icon size={17} /></button>;
+}
+
+function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOpslaanKlant, onPreview }) {
+  const [data, setData] = useState(() => JSON.parse(JSON.stringify(factuur)));
+  const [melding, setMelding] = useState('');
+  const [bezig, setBezig] = useState(false);
+  const totalen = calculateInvoiceTotals(data.items || []);
+  const definitief = data.status !== 'Concept';
+  const update = (path, value) => setData(d => setDeepValue(d, path, value));
+  const save = async (extra = {}) => {
+    setBezig(true);
+    const saved = await onOpslaan({ ...data, ...extra, updatedAt: new Date().toISOString() });
+    setData(saved);
+    setMelding('Opgeslagen');
+    setTimeout(() => setMelding(''), 2200);
+    setBezig(false);
+    return saved;
+  };
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!bezig) onOpslaan({ ...data, updatedAt: new Date().toISOString() }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [JSON.stringify(data)]);
+
+  const addItem = (item = {}) => update('items', [...(data.items || []), normalizeInvoiceItem({ vatRate: bedrijf.defaultVatRate || '21', ...item }, data.items?.length || 0)]);
+  const moveItem = (index, dir) => {
+    const items = [...(data.items || [])];
+    const target = index + dir;
+    if (target < 0 || target >= items.length) return;
+    [items[index], items[target]] = [items[target], items[index]];
+    update('items', items.map((x, i) => ({ ...x, sortOrder: i })));
+  };
+  const setItem = (index, patch) => update('items', (data.items || []).map((x, i) => i === index ? { ...x, ...patch } : x));
+
+  const maakDefinitief = async () => {
+    const fouten = validateInvoice(data, bedrijf);
+    if (fouten.length) {
+      alert(fouten.join('\n'));
+      return;
+    }
+    if (!confirm('Factuur definitief maken? Daarna hoort inhoudelijk wijzigen via correctie- of creditfactuur te lopen.')) return;
+    const snapshot = immutableSnapshot(data, bedrijf);
+    const saved = await save({ status: 'Definitief', finalizedAt: new Date().toISOString(), immutableSnapshot: snapshot });
+    onPreview(saved);
+  };
+
+  const klantOpties = klanten.filter(k => k.companyName || k.contactName);
+
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      {melding && <div style={{ ...factuurCard, borderColor: COLORS.green, color: COLORS.green, fontWeight: 850 }}>{melding}</div>}
+      {definitief && <div style={{ ...factuurCard, borderColor: '#FEDF89', background: '#FFFAEB', color: '#B54708', fontWeight: 800 }}>Deze factuur is definitief. Corrigeer inhoud normaal via een correctie- of creditfactuur.</div>}
+
+      <FactuurSectie titel="Factuurgegevens" icon={FileText}>
+        <div style={grid2}>
+          <FInput label="Factuurnummer" value={data.invoiceNumber} onChange={v => update('invoiceNumber', v)} disabled={definitief} />
+          <FInput label="Klantnummer" value={data.customerNumber || data.customer?.customerNumber || ''} onChange={v => { update('customerNumber', v); update('customer.customerNumber', v); }} />
+          <FInput label="Factuurdatum" type="date" value={data.invoiceDate} onChange={v => { update('invoiceDate', v); update('dueDate', addDaysIso(v, data.paymentTermDays || bedrijf.defaultPaymentTerm)); }} />
+          <FInput label="Vervaldatum" type="date" value={data.dueDate} onChange={v => update('dueDate', v)} />
+          <FSelect label="Status" value={data.status} onChange={v => update('status', v)} options={INVOICE_STATUSES} />
+          <FSelect label="Betaalstatus" value={data.paymentStatus} onChange={v => update('paymentStatus', v)} options={PAYMENT_STATUSES} />
+          <FInput label="Betaaltermijn in dagen" type="number" value={data.paymentTermDays} onChange={v => { update('paymentTermDays', Number(v)); update('dueDate', addDaysIso(data.invoiceDate, Number(v))); }} />
+        </div>
+      </FactuurSectie>
+
+      <FactuurSectie titel="Klantgegevens" icon={Home}>
+        <label style={factuurLabel}>Klantzoeker</label>
+        <select style={{ ...factuurInput, marginBottom: 10 }} value="" onChange={e => {
+          const klant = klantOpties.find(k => k.id === e.target.value);
+          if (klant) {
+            update('customerId', klant.id);
+            update('customer', { ...klant });
+            update('customerNumber', klant.customerNumber || data.customerNumber);
+          }
+        }}>
+          <option value="">Eerder opgeslagen klant selecteren</option>
+          {klantOpties.map(k => <option key={k.id} value={k.id}>{k.companyName || k.contactName} - {k.city}</option>)}
+        </select>
+        <div style={grid2}>
+          <FInput label="Bedrijfsnaam" value={data.customer?.companyName} onChange={v => update('customer.companyName', v)} />
+          <FInput label="Contactpersoon" value={data.customer?.contactName} onChange={v => update('customer.contactName', v)} />
+          <FInput label="Straat en huisnummer" value={data.customer?.address} onChange={v => update('customer.address', v)} />
+          <FInput label="Postcode" value={data.customer?.postalCode} onChange={v => update('customer.postalCode', v)} />
+          <FInput label="Plaats" value={data.customer?.city} onChange={v => update('customer.city', v)} />
+          <FInput label="Telefoonnummer" value={data.customer?.phone} onChange={v => update('customer.phone', v)} />
+          <FInput label="E-mailadres" type="email" value={data.customer?.email} onChange={v => update('customer.email', v)} />
+          <FInput label="Btw-nummer klant" value={data.customer?.vatNumber} onChange={v => update('customer.vatNumber', v)} />
+        </div>
+        <FTextarea label="Opmerkingen" value={data.customer?.notes} onChange={v => update('customer.notes', v)} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+          <button type="button" onClick={async () => { const k = await onOpslaanKlant(data.customer); update('customerId', k.id); update('customer', k); }} style={secondaryButton}><Save size={16} /> Klant opslaan</button>
+          <button type="button" onClick={async () => { if (data.customer?.id) await onOpslaanKlant(data.customer); }} style={secondaryButton}><RefreshCw size={16} /> Klant bijwerken</button>
+        </div>
+      </FactuurSectie>
+
+      <FactuurSectie titel="Projectgegevens" icon={MapPin}>
+        <div style={grid2}>
+          <FInput label="Werkadres" value={data.project?.workAddress} onChange={v => update('project.workAddress', v)} />
+          <FInput label="Postcode" value={data.project?.workPostalCode} onChange={v => update('project.workPostalCode', v)} />
+          <FInput label="Plaats" value={data.project?.workCity} onChange={v => update('project.workCity', v)} />
+          <FInput label="Uitvoering vanaf" type="date" value={data.project?.deliveryDateFrom} onChange={v => update('project.deliveryDateFrom', v)} />
+          <FInput label="Uitvoering t/m" type="date" value={data.project?.deliveryDateTo} onChange={v => update('project.deliveryDateTo', v)} />
+          <FInput label="Referentie" value={data.project?.reference} onChange={v => update('project.reference', v)} />
+          <FInput label="Werkbonnummer" value={data.project?.workOrderNumber} onChange={v => update('project.workOrderNumber', v)} />
+          <FInput label="Opdrachtgever" value={data.project?.clientName} onChange={v => update('project.clientName', v)} />
+        </div>
+        <FTextarea label="Omschrijving opdracht" value={data.project?.description} onChange={v => update('project.description', v)} />
+        <FTextarea label="Interne opmerkingen" value={data.project?.internalNotes} onChange={v => update('project.internalNotes', v)} />
+      </FactuurSectie>
+
+      <FactuurSectie titel="Factuurregels" icon={ClipboardList}>
+        <Arbeidsregel onToevoegen={({ uren, tarief, monteurs }) => addItem({ description: `Arbeid monteurs${monteurs > 1 ? ` (${monteurs} monteurs)` : ''}`, quantity: String(Number(uren || 0) * Number(monteurs || 1)), unit: 'uur', unitPriceExVatCents: parseEuroToCents(tarief || '65,00') })} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '10px 0' }}>
+          <button type="button" onClick={() => addItem()} style={secondaryButton}><Plus size={16} /> Regel toevoegen</button>
+          <select style={factuurInput} onChange={e => { const item = STANDARD_INVOICE_ITEMS.find(x => x.description === e.target.value); if (item) addItem(item); e.target.value = ''; }}>
+            <option value="">Keuzeregel toevoegen</option>
+            {STANDARD_INVOICE_ITEMS.map(i => <option key={i.description}>{i.description}</option>)}
+          </select>
+        </div>
+        <button type="button" onClick={() => update('items', createExampleItems())} style={{ ...secondaryButton, width: '100%', marginBottom: 10 }}><CheckCircle size={16} /> Voorbeeldregels laden</button>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {(data.items || []).map((item, index) => {
+            const line = calculateInvoiceTotals([item]).lines[0];
+            return (
+              <div key={item.id} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 10, background: COLORS.bg }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+                  <GripVertical size={16} color={COLORS.textLight} />
+                  <input value={item.description} onChange={e => setItem(index, { description: e.target.value })} placeholder="Omschrijving" style={{ ...factuurInput, flex: 1 }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <FInput label="Aantal" type="number" value={item.quantity} onChange={v => setItem(index, { quantity: v })} />
+                  <FSelect label="Eenheid" value={item.unit} onChange={v => setItem(index, { unit: v })} options={INVOICE_UNITS} />
+                  <FInput label="Tarief excl. btw" inputMode="decimal" value={formatEuro(item.unitPriceExVatCents, false)} onChange={v => setItem(index, { unitPriceExVatCents: parseEuroToCents(v) })} />
+                  <FSelect label="Btw" value={item.vatRate} onChange={v => setItem(index, { vatRate: v })} options={VAT_RATES} />
+                  <FInput label="Korting %" type="number" value={item.discountPercentage || 0} onChange={v => setItem(index, { discountPercentage: Number(v) })} />
+                  <div><span style={factuurLabel}>Totaal incl.</span><div style={{ padding: '12px', borderRadius: 10, background: COLORS.white, fontWeight: 900 }}>{formatEuro(line.lineTotalCents)}</div></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginTop: 8 }}>
+                  <IconButton title="Omhoog" icon={ChevronLeft} onClick={() => moveItem(index, -1)} />
+                  <IconButton title="Omlaag" icon={ChevronRight} onClick={() => moveItem(index, 1)} />
+                  <IconButton title="Dupliceren" icon={Copy} onClick={() => addItem({ ...item, id: makeId('regel') })} />
+                  <IconButton title="Verwijderen" icon={Trash2} danger onClick={() => update('items', data.items.filter((_, i) => i !== index))} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <TotaalBox totalen={totalen} />
+      </FactuurSectie>
+
+      <FactuurFotoSectie photos={data.photos || []} onChange={photos => update('photos', photos)} />
+
+      <div style={{ position: 'sticky', bottom: 82, zIndex: 80, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, background: 'rgba(245,247,250,0.92)', padding: 8, borderRadius: 16, backdropFilter: 'blur(10px)' }}>
+        <button type="button" disabled={bezig} onClick={() => save()} style={primaryButton}><Save size={17} /> Concept opslaan</button>
+        <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={17} /> Preview</button>
+        <button type="button" onClick={maakDefinitief} style={{ ...primaryButton, gridColumn: '1 / -1', background: COLORS.blue }}><CheckCircle size={17} /> Definitief maken</button>
+      </div>
+    </div>
+  );
+}
+
+const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 };
+const primaryButton = { border: 'none', borderRadius: 12, padding: '12px 10px', background: COLORS.accent, color: COLORS.white, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer' };
+const secondaryButton = { border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 10px', background: COLORS.white, color: COLORS.blue, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer' };
+
+function setDeepValue(obj, path, value) {
+  const copy = Array.isArray(obj) ? [...obj] : { ...obj };
+  const parts = path.split('.');
+  let cur = copy;
+  for (let i = 0; i < parts.length - 1; i++) {
+    cur[parts[i]] = Array.isArray(cur[parts[i]]) ? [...cur[parts[i]]] : { ...(cur[parts[i]] || {}) };
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length - 1]] = value;
+  return copy;
+}
+
+function FactuurSectie({ titel, icon: Icon, children }) {
+  return <section style={factuurCard}><h2 style={{ margin: '0 0 12px', color: COLORS.blue, fontSize: 17, fontWeight: 950, display: 'flex', alignItems: 'center', gap: 8 }}><Icon size={18} /> {titel}</h2>{children}</section>;
+}
+
+function FInput({ label, value, onChange, type = 'text', disabled, inputMode }) {
+  return <label><span style={factuurLabel}>{label}</span><input disabled={disabled} type={type} inputMode={inputMode} value={value ?? ''} onChange={e => onChange(e.target.value)} style={{ ...factuurInput, opacity: disabled ? 0.65 : 1 }} /></label>;
+}
+
+function FTextarea({ label, value, onChange }) {
+  return <label style={{ display: 'block', marginTop: 10 }}><span style={factuurLabel}>{label}</span><textarea value={value ?? ''} onChange={e => onChange(e.target.value)} rows={3} style={{ ...factuurInput, resize: 'vertical' }} /></label>;
+}
+
+function FSelect({ label, value, onChange, options }) {
+  return <label><span style={factuurLabel}>{label}</span><select value={value ?? ''} onChange={e => onChange(e.target.value)} style={factuurInput}>{options.map(o => <option key={o} value={o}>{o}</option>)}</select></label>;
+}
+
+function Arbeidsregel({ onToevoegen }) {
+  const [uren, setUren] = useState('32');
+  const [tarief, setTarief] = useState('65,00');
+  const [monteurs, setMonteurs] = useState('1');
+  const totaal = Math.round((Number(String(uren).replace(',', '.')) || 0) * (Number(monteurs) || 1) * parseEuroToCents(tarief));
+  return (
+    <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 10, background: COLORS.surfaceBlue, marginBottom: 10 }}>
+      <div style={{ fontWeight: 900, color: COLORS.blue, marginBottom: 8 }}>Snelle arbeidsregel</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <FInput label="Uren" type="number" value={uren} onChange={setUren} />
+        <FInput label="Uurtarief excl." inputMode="decimal" value={tarief} onChange={setTarief} />
+        <FInput label="Monteurs" type="number" value={monteurs} onChange={setMonteurs} />
+      </div>
+      <button type="button" onClick={() => onToevoegen({ uren, tarief, monteurs })} style={{ ...secondaryButton, width: '100%', marginTop: 8 }}>Arbeid toevoegen - {formatEuro(totaal)} excl.</button>
+    </div>
+  );
+}
+
+function TotaalBox({ totalen }) {
+  return (
+    <div style={{ marginTop: 12, marginLeft: 'auto', maxWidth: 360, border: `1px solid ${COLORS.borderStrong}`, borderRadius: 14, overflow: 'hidden', background: COLORS.white }}>
+      <TotalRow label="Subtotaal exclusief btw" value={formatEuro(totalen.subtotalExVatCents)} />
+      {totalen.vatBreakdown.map(v => <TotalRow key={v.vatRate} label={v.vatRate === 'verlegd' ? 'Btw verlegd' : `Btw ${v.vatRate}%`} value={formatEuro(v.vatCents)} />)}
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: 13, background: COLORS.surfaceBlue, color: COLORS.blue, fontWeight: 950, borderTop: `1px solid ${COLORS.blueLight}` }}><span>TOTAAL INCLUSIEF BTW</span><span>{formatEuro(totalen.totalIncVatCents)}</span></div>
+    </div>
+  );
+}
+
+function TotalRow({ label, value }) {
+  return <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 13px', fontSize: 13 }}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function FactuurFotoSectie({ photos, onChange }) {
+  const fileToDataUrl = file => new Promise(resolve => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const max = 1400;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.78));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  const addPhotos = async (files) => {
+    const list = Array.from(files || []);
+    const converted = [];
+    for (const file of list) {
+      converted.push({ id: makeId('foto'), src: await fileToDataUrl(file), caption: '', category: 'Overig', sortOrder: photos.length + converted.length });
+    }
+    onChange([...photos, ...converted]);
+  };
+  const move = (i, dir) => {
+    const arr = [...photos];
+    const target = i + dir;
+    if (target < 0 || target >= arr.length) return;
+    [arr[i], arr[target]] = [arr[target], arr[i]];
+    onChange(arr.map((p, idx) => ({ ...p, sortOrder: idx })));
+  };
+  return (
+    <FactuurSectie titel="Fotobijlage" icon={Camera}>
+      <label style={{ ...secondaryButton, width: '100%', boxSizing: 'border-box' }}><Upload size={17} /> Foto's toevoegen<input type="file" accept="image/*" multiple onChange={e => addPhotos(e.target.files)} style={{ display: 'none' }} /></label>
+      <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+        {photos.map((p, i) => (
+          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '82px 1fr', gap: 10, alignItems: 'center', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 8 }}>
+            <img src={p.src} alt="" style={{ width: 82, height: 82, objectFit: 'cover', borderRadius: 10 }} />
+            <div>
+              <input value={p.caption} onChange={e => onChange(photos.map(x => x.id === p.id ? { ...x, caption: e.target.value } : x))} placeholder="Onderschrift" style={{ ...factuurInput, marginBottom: 6 }} />
+              <select value={p.category} onChange={e => onChange(photos.map(x => x.id === p.id ? { ...x, category: e.target.value } : x))} style={{ ...factuurInput, marginBottom: 6 }}>{PHOTO_CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                <IconButton title="Omhoog" icon={ChevronLeft} onClick={() => move(i, -1)} />
+                <IconButton title="Omlaag" icon={ChevronRight} onClick={() => move(i, 1)} />
+                <IconButton title="Verwijderen" icon={Trash2} danger onClick={() => onChange(photos.filter(x => x.id !== p.id))} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </FactuurSectie>
+  );
+}
+
+function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onOpslaan }) {
+  const totalen = calculateInvoiceTotals(factuur.items || []);
+  const mark = async (patch) => onOpslaan({ ...factuur, ...patch, updatedAt: new Date().toISOString() });
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <section style={factuurCard}>
+        <h2 style={{ margin: 0, color: COLORS.blue, fontWeight: 950 }}>{factuur.invoiceNumber}</h2>
+        <p style={{ color: COLORS.textLight }}>{factuur.customer?.companyName || factuur.customer?.contactName} - {formatEuro(totalen.totalIncVatCents)}</p>
+        <TotaalBox totalen={totalen} />
+      </section>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <button type="button" onClick={onBewerk} style={secondaryButton}><Edit2 size={17} /> Bewerken</button>
+        <button type="button" onClick={onPreview} style={primaryButton}><Download size={17} /> PDF</button>
+        <button type="button" onClick={() => mark({ status: 'Verzonden' })} style={secondaryButton}><Send size={17} /> Verzonden</button>
+        <button type="button" onClick={() => mark({ status: 'Betaald', paymentStatus: 'Betaald', paidAt: new Date().toISOString() })} style={secondaryButton}><Check size={17} /> Betaald</button>
+        <button type="button" onClick={() => mark({ paymentStatus: 'Open', paidAt: '' })} style={secondaryButton}><RefreshCw size={17} /> Betaling ongedaan</button>
+        <button type="button" onClick={() => { if (confirm('Factuur annuleren?')) mark({ status: 'Geannuleerd', paymentStatus: 'Geannuleerd' }); }} style={{ ...secondaryButton, color: COLORS.red }}><Ban size={17} /> Annuleren</button>
+      </div>
+    </div>
+  );
+}
+
+function FactuurPdfPreview({ factuur, bedrijf, onOpslaan }) {
+  const [bezig, setBezig] = useState(false);
+  const [dataUrl, setDataUrl] = useState(factuur.finalizedPdfDataUrl || '');
+  const generate = async (download = false, share = false) => {
+    setBezig(true);
+    const { dataUrl, blob } = await genereerFactuurPdf(factuur, bedrijf);
+    setDataUrl(dataUrl);
+    const saved = { ...factuur, pdfGeneratedAt: new Date().toISOString() };
+    if (factuur.status !== 'Concept' && !factuur.finalizedPdfDataUrl) saved.finalizedPdfDataUrl = dataUrl;
+    await onOpslaan(saved);
+    if (download) downloadBlob(blob, `Factuur-${factuur.invoiceNumber}.pdf`);
+    if (share && navigator.share && navigator.canShare) {
+      const file = new File([blob], `Factuur-${factuur.invoiceNumber}.pdf`, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: `Factuur ${factuur.invoiceNumber}` });
+    }
+    setBezig(false);
+  };
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <section style={factuurCard}>
+        <h2 style={{ margin: '0 0 8px', color: COLORS.blue }}>PDF-preview</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button type="button" onClick={() => generate(false, false)} disabled={bezig} style={secondaryButton}><Eye size={17} /> Voorbeeld maken</button>
+          <button type="button" onClick={() => generate(true, false)} disabled={bezig} style={primaryButton}><Download size={17} /> Download</button>
+          <button type="button" onClick={() => generate(false, true)} disabled={bezig} style={secondaryButton}><Share2 size={17} /> Delen</button>
+          <button type="button" onClick={() => generate(false, false)} disabled={bezig} style={secondaryButton}><Save size={17} /> Bewaren</button>
+        </div>
+      </section>
+      <div style={{ ...factuurCard, padding: 8 }}>
+        {dataUrl ? <iframe title="PDF preview" src={dataUrl} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 10 }} /> : <div style={{ padding: 24, textAlign: 'center', color: COLORS.textLight }}>Maak eerst een PDF-preview.</div>}
+      </div>
+    </div>
+  );
+}
+
+function BedrijfsInstellingen({ bedrijf, onOpslaan }) {
+  const [data, setData] = useState({ ...DEFAULT_COMPANY, ...bedrijf });
+  const [melding, setMelding] = useState('');
+  const update = (key, value) => setData(d => ({ ...d, [key]: value }));
+  const uploadAsset = (key, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => update(key, reader.result);
+    reader.readAsDataURL(file);
+  };
+  return (
+    <section style={factuurCard}>
+      <h2 style={{ marginTop: 0, color: COLORS.blue }}>Bedrijfsinstellingen</h2>
+      {melding && <div style={{ color: COLORS.green, fontWeight: 850, marginBottom: 10 }}>{melding}</div>}
+      <div style={grid2}>
+        <FInput label="Juridische bedrijfsnaam" value={data.legalName} onChange={v => update('legalName', v)} />
+        <FInput label="Handelsnaam" value={data.tradeName} onChange={v => update('tradeName', v)} />
+        <FInput label="Straat en huisnummer" value={data.address} onChange={v => update('address', v)} />
+        <FInput label="Postcode" value={data.postalCode} onChange={v => update('postalCode', v)} />
+        <FInput label="Vestigingsplaats" value={data.city} onChange={v => update('city', v)} />
+        <FInput label="Telefoonnummer" value={data.phone} onChange={v => update('phone', v)} />
+        <FInput label="E-mailadres" value={data.email} onChange={v => update('email', v)} />
+        <FInput label="Website" value={data.website} onChange={v => update('website', v)} />
+        <FInput label="KvK-nummer" value={data.kvkNumber} onChange={v => update('kvkNumber', v)} />
+        <FInput label="Btw-identificatienummer" value={data.vatNumber} onChange={v => update('vatNumber', v)} />
+        <FInput label="IBAN" value={data.iban} onChange={v => update('iban', v)} />
+        <FInput label="BIC" value={data.bic} onChange={v => update('bic', v)} />
+        <FInput label="Standaard betaaltermijn" type="number" value={data.defaultPaymentTerm} onChange={v => update('defaultPaymentTerm', Number(v))} />
+        <FSelect label="Standaard btw" value={data.defaultVatRate} onChange={v => update('defaultVatRate', v)} options={VAT_RATES} />
+        <FInput label="Standaard uurtarief" value={formatEuro(data.defaultHourlyRateCents, false)} onChange={v => update('defaultHourlyRateCents', parseEuroToCents(v))} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+        <label style={secondaryButton}><Upload size={16} /> Logo uploaden<input type="file" accept="image/*" onChange={e => uploadAsset('logoUrl', e.target.files?.[0])} style={{ display: 'none' }} /></label>
+        <label style={secondaryButton}><Upload size={16} /> QR-code uploaden<input type="file" accept="image/*" onChange={e => uploadAsset('reviewQrUrl', e.target.files?.[0])} style={{ display: 'none' }} /></label>
+      </div>
+      <FInput label="Link algemene voorwaarden" value={data.termsUrl} onChange={v => update('termsUrl', v)} />
+      <FInput label="Link betalingsvoorwaarden" value={data.paymentTermsUrl} onChange={v => update('paymentTermsUrl', v)} />
+      <FTextarea label="Standaard voettekst" value={data.footerText} onChange={v => update('footerText', v)} />
+      <button type="button" onClick={async () => { await onOpslaan(data); setMelding('Bedrijfsinstellingen opgeslagen'); }} style={{ ...primaryButton, width: '100%', marginTop: 12 }}><Save size={17} /> Instellingen opslaan</button>
+    </section>
+  );
+}
+
+async function imageToDataUrl(url) {
+  if (!url) return '';
+  if (String(url).startsWith('data:')) return url;
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function genereerFactuurPdf(factuur, bedrijf) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+  const W = 210, H = 297, margin = 12;
+  const blue = [15, 45, 92], lightBlue = [30, 136, 229], text = [24, 34, 48], muted = [102, 112, 133];
+  const logo = await imageToDataUrl(bedrijf.logoUrl || DEFAULT_COMPANY.logoUrl);
+  const qr = await imageToDataUrl(bedrijf.reviewQrUrl || DEFAULT_COMPANY.reviewQrUrl);
+  const totals = calculateInvoiceTotals(factuur.items || []);
+  const pages = 1 + Math.ceil((factuur.photos || []).length / 6);
+
+  const footer = (page, total) => {
+    doc.setDrawColor(...blue); doc.setLineWidth(0.35); doc.line(margin, H - 18, W - margin, H - 18);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...blue);
+    doc.text(bedrijf.legalName || DEFAULT_COMPANY.legalName, margin, H - 12);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...text);
+    doc.text(`${bedrijf.phone || ''}  -  ${bedrijf.email || ''}  -  ${bedrijf.website || ''}`, margin, H - 7);
+    doc.text(`Pagina ${page} van ${total}`, W - margin, H - 8, { align: 'right' });
+  };
+
+  const tableLine = (y) => { doc.setDrawColor(226, 232, 240); doc.line(margin, y, W - margin, y); };
+  const split = (str, width) => doc.splitTextToSize(String(str || ''), width);
+
+  if (logo) doc.addImage(logo, 'JPEG', margin, 12, 92, 28, undefined, 'FAST');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...blue);
+  doc.text(bedrijf.legalName || DEFAULT_COMPANY.legalName, 138, 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...text);
+  [`Tel ${bedrijf.phone}`, bedrijf.email, bedrijf.website, `KvK ${bedrijf.kvkNumber}`, `Btw ${bedrijf.vatNumber}`, `IBAN ${bedrijf.iban}`].forEach((l, i) => doc.text(l || '', 138, 22 + i * 6));
+  doc.setDrawColor(...blue); doc.setLineWidth(0.45); doc.line(margin, 50, W - margin, 50);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.setTextColor(...blue); doc.text('FACTUUR', margin, 72);
+  doc.setFontSize(9); doc.setTextColor(...text);
+  const metaX = 136, metaY = 63;
+  [['Factuurnummer:', factuur.invoiceNumber], ['Factuurdatum:', formatDateNl(factuur.invoiceDate)], ['Vervaldatum:', formatDateNl(factuur.dueDate)], ['Klantnummer:', factuur.customerNumber || factuur.customer?.customerNumber || '']].forEach((r, i) => {
+    doc.setFont('helvetica', 'bold'); doc.text(r[0], metaX, metaY + i * 8);
+    doc.setFont('helvetica', 'normal'); doc.text(String(r[1] || ''), metaX + 38, metaY + i * 8);
+  });
+  tableLine(89);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...blue); doc.text('FACTUUR AAN', margin + 10, 101); doc.text('PROJECTGEGEVENS', 118, 101);
+  doc.setDrawColor(226, 232, 240); doc.line(96, 94, 96, 134);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...text);
+  [factuur.customer?.companyName || factuur.customer?.contactName, factuur.customer?.address, `${factuur.customer?.postalCode || ''} ${factuur.customer?.city || ''}`, factuur.customer?.phone, factuur.customer?.email].forEach((l, i) => doc.text(String(l || ''), margin + 10, 112 + i * 7));
+  const uitvoering = factuur.project?.deliveryDateFrom === factuur.project?.deliveryDateTo ? formatLongDateNl(factuur.project?.deliveryDateFrom) : `${formatLongDateNl(factuur.project?.deliveryDateFrom)} t/m ${formatLongDateNl(factuur.project?.deliveryDateTo)}`;
+  [['Werkadres:', `${factuur.project?.workAddress || ''}, ${factuur.project?.workCity || ''}`], ['Uitvoering:', uitvoering], ['Referentie:', factuur.project?.reference || ''], ['Bijlage:', `${(factuur.photos || []).length} foto${(factuur.photos || []).length === 1 ? '' : "'s"}`]].forEach((r, i) => {
+    doc.setFont('helvetica', 'bold'); doc.text(r[0], 118, 112 + i * 9);
+    doc.setFont('helvetica', 'normal'); doc.text(String(r[1] || ''), 144, 112 + i * 9);
+  });
+  tableLine(141);
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(...blue); doc.text('OMSCHRIJVING OPDRACHT', margin + 10, 153);
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...text); doc.text(split(factuur.project?.description || '', 118), margin + 10, 163);
+  const tableY = 181;
+  doc.setFillColor(...blue); doc.roundedRect(margin, tableY, W - margin * 2, 9, 1, 1, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  ['OMSCHRIJVING', 'AANTAL', 'EENHEID', 'TARIEF EXCL. BTW', 'TOTAAL EXCL. BTW'].forEach((h, i) => doc.text(h, [margin + 3, 85, 111, 134, 171][i], tableY + 6));
+  let y = tableY + 13;
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...text);
+  totals.lines.forEach(line => {
+    const desc = split(line.description, 58);
+    const rowH = Math.max(10, desc.length * 4.5 + 3);
+    doc.text(desc, margin + 3, y);
+    doc.text(String(line.quantity).replace('.', ','), 88, y, { align: 'right' });
+    doc.text(line.unit, 114, y, { align: 'center' });
+    doc.text(formatEuro(line.unitPriceExVatCents), 166, y, { align: 'right' });
+    doc.text(formatEuro(line.lineSubtotalCents), W - margin - 5, y, { align: 'right' });
+    tableLine(y + rowH - 5);
+    y += rowH;
+  });
+  const payY = Math.min(247, y + 10);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...text);
+  doc.text(split(`Wij verzoeken u het totaalbedrag van ${formatEuro(totals.totalIncVatCents)} uiterlijk op ${formatLongDateNl(factuur.dueDate)} over te maken naar IBAN ${bedrijf.iban}, onder vermelding van factuurnummer ${factuur.invoiceNumber}.`, 75), margin + 8, payY);
+  const boxX = 112, boxY = payY - 12;
+  doc.setDrawColor(203, 213, 225); doc.roundedRect(boxX, boxY, 86, 32, 2, 2);
+  doc.setFontSize(9); doc.text('Subtotaal exclusief btw', boxX + 7, boxY + 9); doc.text(formatEuro(totals.subtotalExVatCents), boxX + 80, boxY + 9, { align: 'right' });
+  doc.text('Btw 21%', boxX + 7, boxY + 18); doc.text(formatEuro(totals.vatAmountCents), boxX + 80, boxY + 18, { align: 'right' });
+  doc.setDrawColor(...lightBlue); doc.line(boxX, boxY + 23, boxX + 86, boxY + 23);
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(...blue); doc.text('TOTAAL INCLUSIEF BTW', boxX + 7, boxY + 29); doc.setFontSize(13); doc.text(formatEuro(totals.totalIncVatCents), boxX + 80, boxY + 29, { align: 'right' });
+  doc.setFontSize(9); doc.roundedRect(boxX, boxY + 38, 86, 24, 2, 2);
+  doc.text('Laat een Google review achter', boxX + 6, boxY + 49); doc.setFont('helvetica', 'normal'); doc.setTextColor(...text); doc.text('Uw mening wordt zeer gewaardeerd', boxX + 6, boxY + 56);
+  if (qr) doc.addImage(qr, 'PNG', boxX + 62, boxY + 41, 20, 20, undefined, 'FAST');
+  doc.setFontSize(7); doc.setTextColor(...muted); doc.text(bedrijf.footerText || DEFAULT_COMPANY.footerText, margin + 10, H - 27);
+  footer(1, pages);
+
+  const photos = [...(factuur.photos || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  for (let p = 0; p < Math.ceil(photos.length / 6); p++) {
+    doc.addPage();
+    const pageNo = p + 2;
+    if (logo) doc.addImage(logo, 'JPEG', margin, 12, 72, 22, undefined, 'FAST');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...blue); doc.text('FOTOBIJLAGE', margin, 48);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...text);
+    doc.text(`Factuurnummer: ${factuur.invoiceNumber}`, margin, 58);
+    doc.text(`Referentie: ${factuur.project?.reference || '-'}`, margin, 64);
+    doc.text(`Werkadres: ${factuur.project?.workAddress || ''}, ${factuur.project?.workCity || ''}`, margin, 70);
+    doc.text('Onderstaande foto\'s geven een overzicht van de uitgevoerde werkzaamheden.', margin, 78);
+    const subset = photos.slice(p * 6, p * 6 + 6);
+    for (let i = 0; i < subset.length; i++) {
+      const col = i % 3, row = Math.floor(i / 3);
+      const x = margin + col * 62, yy = 88 + row * 78;
+      const photo = subset[i];
+      if (photo.src) doc.addImage(photo.src, 'JPEG', x, yy, 56, 44, undefined, 'FAST');
+      doc.setFillColor(...blue); doc.circle(x + 5, yy + 5, 4, 'F'); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.text(String(p * 6 + i + 1), x + 5, yy + 7, { align: 'center' });
+      doc.setTextColor(...text); doc.setFont('helvetica','bold'); doc.text(photo.category || 'Overig', x, yy + 51);
+      doc.setFont('helvetica','normal'); doc.text(split(photo.caption || '', 54), x, yy + 57);
+    }
+    footer(pageNo, pages);
+  }
+
+  const blob = doc.output('blob');
+  const dataUrl = doc.output('datauristring');
+  return { blob, dataUrl };
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // =================== INSTELLINGEN ===================
