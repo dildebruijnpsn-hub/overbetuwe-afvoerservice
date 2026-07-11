@@ -75,7 +75,7 @@ export function formatEuro(cents, symbol = true) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return symbol ? `EUR ${value}` : value;
+  return symbol ? `€ ${value}` : value;
 }
 
 export function formatDateNl(dateIso) {
@@ -198,7 +198,7 @@ export function createEmptyInvoice(existingInvoices = [], company = DEFAULT_COMP
       description: 'Vervanging van het bestaande riooltrace, inclusief graafwerk, PVC-materialen, afvoer en herstel.',
       internalNotes: '',
     },
-    items: [normalizeInvoiceItem({ description: 'Arbeid monteurs', quantity: '1', unit: 'uur', unitPriceExVatCents: company.defaultHourlyRateCents || 6500, vatRate: company.defaultVatRate || '21' }, 0)],
+    items: [],
     photos: [],
     finalizedPdfDataUrl: '',
     pdfGeneratedAt: '',
@@ -223,7 +223,7 @@ export function validateInvoice(invoice, company) {
   if (!invoice.customer?.address || !invoice.customer?.postalCode || !invoice.customer?.city) errors.push('Vul het volledige klantadres in.');
   if (!invoice.project?.description) errors.push('Vul een omschrijving van de werkzaamheden in.');
   if (!Array.isArray(invoice.items) || invoice.items.length === 0) errors.push('Voeg minimaal een factuurregel toe.');
-  if (totals.subtotalExVatCents <= 0) errors.push('Het bedrag exclusief btw moet groter zijn dan EUR 0,00.');
+  if (totals.subtotalExVatCents <= 0) errors.push('Het bedrag exclusief btw moet groter zijn dan € 0,00.');
   if (!invoice.paymentTermDays && !invoice.dueDate) errors.push('Vul een betaaltermijn of vervaldatum in.');
   (invoice.items || []).forEach((item, index) => {
     const line = calculateLine(item);
