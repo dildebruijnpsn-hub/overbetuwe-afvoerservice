@@ -5231,6 +5231,8 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   const [data, setData] = useState(() => JSON.parse(JSON.stringify(factuur)));
   const [melding, setMelding] = useState('');
   const [bezig, setBezig] = useState(false);
+  const [toonGeavanceerd, setToonGeavanceerd] = useState(false);
+  const [toonFotos, setToonFotos] = useState(false);
   const totalen = calculateInvoiceTotals(data.items || []);
   const definitief = data.status !== 'Concept';
   const update = (path, value) => setData(d => setDeepValue(d, path, value));
@@ -5274,12 +5276,79 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   };
 
   const klantOpties = klanten.filter(k => k.companyName || k.contactName);
+  const vulWerkadresVanafKlant = () => {
+    update('project.workAddress', data.customer?.address || '');
+    update('project.workPostalCode', data.customer?.postalCode || '');
+    update('project.workCity', data.customer?.city || '');
+  };
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       {melding && <div style={{ ...factuurCard, borderColor: COLORS.green, color: COLORS.green, fontWeight: 850 }}>{melding}</div>}
       {definitief && <div style={{ ...factuurCard, borderColor: '#FEDF89', background: '#FFFAEB', color: '#B54708', fontWeight: 800 }}>Deze factuur is definitief. Corrigeer inhoud normaal via een correctie- of creditfactuur.</div>}
 
+      <FactuurSectie titel="Snelle factuur" icon={FileText}>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end' }}>
+            <div>
+              <label style={factuurLabel}>Klant zoeken</label>
+              <select style={factuurInput} value="" onChange={e => {
+                const klant = klantOpties.find(k => k.id === e.target.value);
+                if (klant) {
+                  update('customerId', klant.id);
+                  update('customer', { ...klant });
+                  update('customerNumber', klant.customerNumber || data.customerNumber);
+                  update('project.workAddress', klant.address || '');
+                  update('project.workPostalCode', klant.postalCode || '');
+                  update('project.workCity', klant.city || '');
+                }
+              }}>
+                <option value="">Kies bestaande klant</option>
+                {klantOpties.map(k => <option key={k.id} value={k.id}>{k.companyName || k.contactName} - {k.city}</option>)}
+              </select>
+            </div>
+            <button type="button" onClick={() => update('items', createExampleItems())} style={{ ...secondaryButton, height: 45, whiteSpace: 'nowrap' }}>Voorbeeld</button>
+          </div>
+
+          <div style={responsiveGrid2}>
+            <FInput label="Klantnaam" value={data.customer?.companyName || data.customer?.contactName || ''} onChange={v => { update('customer.companyName', v); update('customer.contactName', v); }} />
+            <FInput label="Telefoon" value={data.customer?.phone} onChange={v => update('customer.phone', v)} />
+            <FInput label="E-mail" type="email" value={data.customer?.email} onChange={v => update('customer.email', v)} />
+            <FInput label="Klantadres" value={data.customer?.address} onChange={v => { update('customer.address', v); if (!data.project?.workAddress) update('project.workAddress', v); }} />
+            <FInput label="Postcode" value={data.customer?.postalCode} onChange={v => { update('customer.postalCode', v); if (!data.project?.workPostalCode) update('project.workPostalCode', v); }} />
+            <FInput label="Plaats" value={data.customer?.city} onChange={v => { update('customer.city', v); if (!data.project?.workCity) update('project.workCity', v); }} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
+            <button type="button" onClick={vulWerkadresVanafKlant} style={secondaryButton}><MapPin size={16} /> Werkadres = klantadres</button>
+            <button type="button" onClick={async () => { const k = await onOpslaanKlant(data.customer); update('customerId', k.id); update('customer', k); }} style={secondaryButton}><Save size={16} /> Klant bewaren</button>
+          </div>
+
+          <FTextarea label="Omschrijving werkzaamheden" value={data.project?.description} onChange={v => update('project.description', v)} />
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+            <button type="button" onClick={() => update('project.description', 'Vervanging van het bestaande riooltrace, inclusief graafwerk, PVC-materialen, afvoer en herstel.')} style={secondaryButton}>Rioolvervanging</button>
+            <button type="button" onClick={() => update('project.description', 'Ontstoppingswerkzaamheden uitgevoerd, leiding gereinigd en afvoer gecontroleerd.')} style={secondaryButton}>Ontstopping</button>
+            <button type="button" onClick={() => update('project.description', 'Camera-inspectie uitgevoerd en bevindingen met klant besproken.')} style={secondaryButton}>Camera</button>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 10 }}>
+            <TotaalBox totalen={totalen} />
+          </div>
+        </div>
+      </FactuurSectie>
+
+      <button
+        type="button"
+        onClick={() => setToonGeavanceerd(v => !v)}
+        style={{ ...secondaryButton, width: '100%', justifyContent: 'space-between' }}
+      >
+        <span>{toonGeavanceerd ? 'Minder gegevens tonen' : 'Meer gegevens aanpassen'}</span>
+        {toonGeavanceerd ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
+      </button>
+
+      {toonGeavanceerd && (
+        <>
       <FactuurSectie titel="Factuurgegevens" icon={FileText}>
         <div style={responsiveGrid2}>
           <FInput label="Factuurnummer" value={data.invoiceNumber} onChange={v => update('invoiceNumber', v)} disabled={definitief} />
@@ -5336,6 +5405,8 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
         <FTextarea label="Omschrijving opdracht" value={data.project?.description} onChange={v => update('project.description', v)} />
         <FTextarea label="Interne opmerkingen" value={data.project?.internalNotes} onChange={v => update('project.internalNotes', v)} />
       </FactuurSectie>
+        </>
+      )}
 
       <FactuurSectie titel="Factuurregels" icon={ClipboardList}>
         <Arbeidsregel onToevoegen={({ uren, tarief, monteurs }) => addItem({ description: `Arbeid monteurs${monteurs > 1 ? ` (${monteurs} monteurs)` : ''}`, quantity: String(Number(uren || 0) * Number(monteurs || 1)), unit: 'uur', unitPriceExVatCents: parseEuroToCents(tarief || '65,00') })} />
@@ -5377,11 +5448,20 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
         <TotaalBox totalen={totalen} />
       </FactuurSectie>
 
-      <FactuurFotoSectie photos={data.photos || []} onChange={photos => update('photos', photos)} />
+      <button
+        type="button"
+        onClick={() => setToonFotos(v => !v)}
+        style={{ ...secondaryButton, width: '100%', justifyContent: 'space-between' }}
+      >
+        <span>{toonFotos ? 'Fotobijlage verbergen' : `Foto's toevoegen (${(data.photos || []).length})`}</span>
+        <Camera size={17} />
+      </button>
+
+      {toonFotos && <FactuurFotoSectie photos={data.photos || []} onChange={photos => update('photos', photos)} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, background: COLORS.white, border: `1px solid ${COLORS.border}`, padding: 12, borderRadius: 16, boxShadow: COLORS.shadowSoft, marginTop: 14, marginBottom: 24 }}>
-        <button type="button" disabled={bezig} onClick={() => save()} style={primaryButton}><Save size={17} /> Concept opslaan</button>
-        <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={17} /> Preview</button>
+        <button type="button" disabled={bezig} onClick={() => save()} style={primaryButton}><Save size={17} /> Opslaan</button>
+        <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={17} /> PDF bekijken</button>
         <button type="button" onClick={maakDefinitief} style={{ ...primaryButton, background: COLORS.blue }}><CheckCircle size={17} /> Definitief maken</button>
       </div>
     </div>
