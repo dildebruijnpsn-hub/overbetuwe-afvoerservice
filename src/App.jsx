@@ -5761,6 +5761,7 @@ async function imageToDataUrl(url) {
   if (!url) return '';
   if (String(url).startsWith('data:')) return url;
   const res = await fetch(url);
+  if (!res.ok) return '';
   const blob = await res.blob();
   return await new Promise(resolve => {
     const reader = new FileReader();
@@ -5775,8 +5776,8 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   const W = 210, H = 297, margin = 10.8;
   const blue = [15, 45, 92], lightBlue = [30, 136, 229], paleBlue = [241, 247, 255], lineColor = [218, 226, 236], text = [24, 34, 48], muted = [92, 104, 122], gold = [255, 172, 0];
   const pdfEuro = cents => `€ ${(Number(cents || 0) / 100).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const logo = await imageToDataUrl(bedrijf.logoUrl || DEFAULT_COMPANY.logoUrl);
-  const qr = await imageToDataUrl(bedrijf.reviewQrUrl || DEFAULT_COMPANY.reviewQrUrl);
+  const logo = (await imageToDataUrl(bedrijf.logoUrl || DEFAULT_COMPANY.logoUrl)) || LOGO_DATA_URL;
+  const qr = await imageToDataUrl(DEFAULT_COMPANY.reviewQrUrl || bedrijf.reviewQrUrl);
   const totals = calculateInvoiceTotals(factuur.items || []);
   const pages = 1 + Math.ceil((factuur.photos || []).length / 6);
 
@@ -5815,17 +5816,17 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.text(safe(value), 146, y);
   };
   const footer = (page, total) => {
-    hLine(H - 19.5, true);
+    hLine(H - 14, true);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...blue);
-    doc.text(safe(bedrijf.legalName || DEFAULT_COMPANY.legalName), margin, H - 13);
+    doc.text(safe(bedrijf.legalName || DEFAULT_COMPANY.legalName), margin, H - 8.5);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...text);
     doc.text(`${safe(bedrijf.phone)}  •  ${safe(bedrijf.email)}  •  ${safe(bedrijf.website)}`, margin, H - 7.5);
     doc.setFontSize(8.2);
-    doc.text(`Pagina ${page} van ${total}`, W - margin, H - 8.5, { align: 'right' });
+    doc.text(`Pagina ${page} van ${total}`, W - margin, H - 5, { align: 'right' });
   };
 
   if (logo) doc.addImage(logo, imageType(logo), margin, 10.5, 96, 29, undefined, 'FAST');
@@ -5837,7 +5838,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   contactLine('K', `KvK ${bedrijf.kvkNumber || DEFAULT_COMPANY.kvkNumber}`, 39);
   contactLine('B', `Btw ${bedrijf.vatNumber || DEFAULT_COMPANY.vatNumber}`, 45);
   contactLine('I', `IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}`, 51);
-  hLine(50, true);
+  hLine(55, true);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(29); doc.setTextColor(...blue); doc.text('FACTUUR', margin, 72);
   doc.setFontSize(8.8); doc.setTextColor(...text);
   const metaX = 132, metaY = 63;
@@ -5864,8 +5865,8 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   hLine(141, true);
   sectionIcon(margin + 4, 153, 'O');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9.2); doc.setTextColor(...blue); doc.text('OMSCHRIJVING OPDRACHT', margin + 11, 153);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8); doc.setTextColor(...text); doc.text(split(factuur.project?.description || '', 118), margin + 11, 163);
-  const tableY = 181;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8); doc.setTextColor(...text); doc.text(split(factuur.project?.description || '', 118), margin + 11, 158);
+  const tableY = 166;
   const tableW = W - margin * 2;
   const cols = [margin, 72, 100, 129, 167, W - margin];
   doc.setFillColor(...blue); doc.roundedRect(margin, tableY, tableW, 9.2, 1.1, 1.1, 'F');
@@ -5889,18 +5890,16 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     [cols[1], cols[2], cols[3], cols[4]].forEach(x => vLine(x, y - 7.5, y + rowH - 5));
     y += rowH;
   });
-  const payY = 232;
+  const payY = Math.max(222, y + 2);
   sectionIcon(margin + 5, payY + 16, 'E');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor(...text);
   const payText = `Wij verzoeken u het totaalbedrag van ${pdfEuro(totals.totalIncVatCents)} uiterlijk op ${formatLongDateNl(factuur.dueDate)} over te maken naar IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}, onder vermelding van factuurnummer ${factuur.invoiceNumber}.`;
   doc.text(split(payText, 78), margin + 17, payY + 9);
   doc.setFont('helvetica', 'bold');
-  doc.text(pdfEuro(totals.totalIncVatCents), margin + 44, payY + 13.2);
-  doc.text(bedrijf.iban || DEFAULT_COMPANY.iban, margin + 41, payY + 22);
 
-  const boxX = 109, boxY = 220;
+  const boxX = 109, boxY = 223;
   doc.setDrawColor(...lineColor); doc.setFillColor(250, 252, 255);
-  doc.roundedRect(boxX, boxY, 90, 34, 2, 2, 'FD');
+  doc.roundedRect(boxX, boxY, 90, 30, 2, 2, 'FD');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8); doc.setTextColor(...text);
   doc.text('Subtotaal exclusief btw', boxX + 7, boxY + 9); doc.text(pdfEuro(totals.subtotalExVatCents), boxX + 83, boxY + 9, { align: 'right' });
   totals.vatBreakdown.forEach((vat, i) => {
@@ -5908,13 +5907,13 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.text(label, boxX + 7, boxY + 18 + i * 6);
     doc.text(pdfEuro(vat.vatCents), boxX + 83, boxY + 18 + i * 6, { align: 'right' });
   });
-  doc.setDrawColor(...lightBlue); doc.setLineWidth(0.35); doc.line(boxX, boxY + 23.5, boxX + 90, boxY + 23.5);
-  doc.setFillColor(...paleBlue); doc.rect(boxX + 0.2, boxY + 24, 89.6, 9.8, 'F');
+  doc.setDrawColor(...lightBlue); doc.setLineWidth(0.35); doc.line(boxX, boxY + 21.2, boxX + 90, boxY + 21.2);
+  doc.setFillColor(...paleBlue); doc.rect(boxX + 0.2, boxY + 21.7, 89.6, 8.1, 'F');
   doc.setFont('helvetica', 'bold'); doc.setTextColor(...blue); doc.setFontSize(8.8);
-  doc.text('TOTAAL INCLUSIEF BTW', boxX + 7, boxY + 30.5);
-  doc.setFontSize(14); doc.text(pdfEuro(totals.totalIncVatCents), boxX + 83, boxY + 30.8, { align: 'right' });
+  doc.text('TOTAAL INCLUSIEF BTW', boxX + 7, boxY + 27.3);
+  doc.setFontSize(14); doc.text(pdfEuro(totals.totalIncVatCents), boxX + 83, boxY + 27.6, { align: 'right' });
 
-  const reviewY = 252;
+  const reviewY = 256;
   doc.setDrawColor(...lineColor); doc.setFillColor(255, 255, 255);
   doc.roundedRect(boxX, reviewY, 90, 22, 2, 2, 'FD');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); doc.setTextColor(...blue);
@@ -5929,7 +5928,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   doc.setFillColor(242, 247, 255); doc.circle(margin + 5, H - 27, 3.8, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(...blue); doc.text('i', margin + 5, H - 25.2, { align: 'center' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
-  doc.text(bedrijf.footerText || DEFAULT_COMPANY.footerText, margin + 12, H - 21.2);
+  doc.text(bedrijf.footerText || DEFAULT_COMPANY.footerText, margin + 12, H - 22.2);
   footer(1, pages);
 
   const photos = [...(factuur.photos || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
