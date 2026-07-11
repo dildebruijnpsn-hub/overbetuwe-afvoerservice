@@ -5233,6 +5233,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   const [bezig, setBezig] = useState(false);
   const [toonGeavanceerd, setToonGeavanceerd] = useState(false);
   const [toonFotos, setToonFotos] = useState(false);
+  const [pvcBedrag, setPvcBedrag] = useState('');
   const totalen = calculateInvoiceTotals(data.items || []);
   const definitief = data.status !== 'Concept';
   const update = (path, value) => setData(d => setDeepValue(d, path, value));
@@ -5276,10 +5277,32 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   };
 
   const klantOpties = klanten.filter(k => k.companyName || k.contactName);
+  const pvcRegel = (data.items || []).find(item => String(item.description || '').toLowerCase().includes('pvc-materialen'));
+  useEffect(() => {
+    if (pvcRegel) setPvcBedrag(formatEuro(pvcRegel.unitPriceExVatCents || 0, false));
+  }, [pvcRegel?.unitPriceExVatCents]);
   const vulWerkadresVanafKlant = () => {
     update('project.workAddress', data.customer?.address || '');
     update('project.workPostalCode', data.customer?.postalCode || '');
     update('project.workCity', data.customer?.city || '');
+  };
+  const updatePvcBedrag = (waarde) => {
+    const bedrag = parseEuroToCents(waarde);
+    const items = [...(data.items || [])];
+    const index = items.findIndex(item => String(item.description || '').toLowerCase().includes('pvc-materialen'));
+    const regel = normalizeInvoiceItem({
+      description: 'PVC-materialen',
+      quantity: '1',
+      unit: 'post',
+      vatRate: bedrijf.defaultVatRate || '21',
+      unitPriceExVatCents: bedrag,
+    }, items.length);
+    if (index >= 0) {
+      items[index] = { ...items[index], description: 'PVC-materialen', quantity: '1', unit: 'post', unitPriceExVatCents: bedrag };
+    } else {
+      items.push(regel);
+    }
+    update('items', items);
   };
 
   return (
@@ -5330,6 +5353,21 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
             <button type="button" onClick={() => update('project.description', 'Vervanging van het bestaande riooltrace, inclusief graafwerk, PVC-materialen, afvoer en herstel.')} style={secondaryButton}>Rioolvervanging</button>
             <button type="button" onClick={() => update('project.description', 'Ontstoppingswerkzaamheden uitgevoerd, leiding gereinigd en afvoer gecontroleerd.')} style={secondaryButton}>Ontstopping</button>
             <button type="button" onClick={() => update('project.description', 'Camera-inspectie uitgevoerd en bevindingen met klant besproken.')} style={secondaryButton}>Camera</button>
+          </div>
+
+          <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 12, background: COLORS.surfaceBlue }}>
+            <FInput
+              label="PVC-materialen bedrag excl. btw"
+              inputMode="decimal"
+              value={pvcBedrag}
+              onChange={v => {
+                setPvcBedrag(v);
+                updatePvcBedrag(v);
+              }}
+            />
+            <div style={{ marginTop: 6, color: COLORS.textLight, fontSize: 12, fontWeight: 650 }}>
+              Wordt automatisch als aparte factuurregel toegevoegd.
+            </div>
           </div>
 
           <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 10 }}>
