@@ -12,16 +12,16 @@ import {
 } from './invoiceCore.js';
 
 const arbeid = calculateLine({ description: 'Arbeid monteurs', quantity: '32', unit: 'uur', unitPriceExVatCents: 6500, vatRate: '21' });
-assert.equal(arbeid.lineSubtotalCents, 208000, '32 uur x EUR 65 moet EUR 2.080,00 exclusief btw zijn');
+assert.equal(arbeid.lineSubtotalCents, 208000, '32 uur x € 65 moet € 2.080,00 exclusief btw zijn');
 
 const btw = calculateLine({ description: 'Test', quantity: '1', unit: 'post', unitPriceExVatCents: 10000, vatRate: '21' });
-assert.equal(btw.lineVatCents, 2100, '21 procent btw over EUR 100,00 moet EUR 21,00 zijn');
+assert.equal(btw.lineVatCents, 2100, '21 procent btw over € 100,00 moet € 21,00 zijn');
 
 const voorbeeld = calculateInvoiceTotals(createExampleItems());
-assert.equal(voorbeeld.subtotalExVatCents, 335190, 'Voorbeeld subtotaal moet EUR 3.351,90 zijn');
-assert.equal(voorbeeld.vatAmountCents, 70390, 'Voorbeeld btw moet EUR 703,90 zijn');
-assert.equal(voorbeeld.totalIncVatCents, 405580, 'Voorbeeld totaal moet EUR 4.055,80 zijn');
-assert.equal(formatEuro(voorbeeld.totalIncVatCents), 'EUR 4.055,80');
+assert.equal(voorbeeld.subtotalExVatCents, 335190, 'Voorbeeld subtotaal moet € 3.351,90 zijn');
+assert.equal(voorbeeld.vatAmountCents, 70390, 'Voorbeeld btw moet € 703,90 zijn');
+assert.equal(voorbeeld.totalIncVatCents, 405580, 'Voorbeeld totaal moet € 4.055,80 zijn');
+assert.equal(formatEuro(voorbeeld.totalIncVatCents), '€ 4.055,80');
 
 const mixed = calculateInvoiceTotals([
   { description: 'A', quantity: '1', unit: 'post', unitPriceExVatCents: 10000, vatRate: '21' },
