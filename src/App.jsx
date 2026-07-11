@@ -3168,7 +3168,7 @@ function ReparatieKaart({ r, onBewerk, onVerwijder }) {
               <div key={idx} style={{ fontSize: 12, color: COLORS.textLight, marginBottom: 4 }}>
                 <span style={{ fontWeight: 600 }}>{formatDatum(h.tijd)} {new Date(h.tijd).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span>
                 {' - '}
-                {h.veld === 'aangemaakt' ? h.naar : <span><strong>{h.veld}</strong>: {h.van} -> {h.naar}</span>}
+                  {h.veld === 'aangemaakt' ? h.naar : <span><strong>{h.veld}</strong>: {h.van} {'->'} {h.naar}</span>}
               </div>
             ))}
           </div>
@@ -5071,7 +5071,7 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
   };
 
   return (
-    <main style={{ padding: '16px 14px 96px', maxWidth: 980, margin: '0 auto' }}>
+    <main style={{ padding: '16px 14px 120px', maxWidth: 980, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
         <div>
           <h1 style={{ margin: 0, color: COLORS.blue, fontSize: 24, fontWeight: 950 }}>Facturen</h1>
@@ -5281,7 +5281,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
       {definitief && <div style={{ ...factuurCard, borderColor: '#FEDF89', background: '#FFFAEB', color: '#B54708', fontWeight: 800 }}>Deze factuur is definitief. Corrigeer inhoud normaal via een correctie- of creditfactuur.</div>}
 
       <FactuurSectie titel="Factuurgegevens" icon={FileText}>
-        <div style={grid2}>
+        <div style={responsiveGrid2}>
           <FInput label="Factuurnummer" value={data.invoiceNumber} onChange={v => update('invoiceNumber', v)} disabled={definitief} />
           <FInput label="Klantnummer" value={data.customerNumber || data.customer?.customerNumber || ''} onChange={v => { update('customerNumber', v); update('customer.customerNumber', v); }} />
           <FInput label="Factuurdatum" type="date" value={data.invoiceDate} onChange={v => { update('invoiceDate', v); update('dueDate', addDaysIso(v, data.paymentTermDays || bedrijf.defaultPaymentTerm)); }} />
@@ -5305,7 +5305,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
           <option value="">Eerder opgeslagen klant selecteren</option>
           {klantOpties.map(k => <option key={k.id} value={k.id}>{k.companyName || k.contactName} - {k.city}</option>)}
         </select>
-        <div style={grid2}>
+        <div style={responsiveGrid2}>
           <FInput label="Bedrijfsnaam" value={data.customer?.companyName} onChange={v => update('customer.companyName', v)} />
           <FInput label="Contactpersoon" value={data.customer?.contactName} onChange={v => update('customer.contactName', v)} />
           <FInput label="Straat en huisnummer" value={data.customer?.address} onChange={v => update('customer.address', v)} />
@@ -5316,14 +5316,14 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
           <FInput label="Btw-nummer klant" value={data.customer?.vatNumber} onChange={v => update('customer.vatNumber', v)} />
         </div>
         <FTextarea label="Opmerkingen" value={data.customer?.notes} onChange={v => update('customer.notes', v)} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginTop: 10 }}>
           <button type="button" onClick={async () => { const k = await onOpslaanKlant(data.customer); update('customerId', k.id); update('customer', k); }} style={secondaryButton}><Save size={16} /> Klant opslaan</button>
           <button type="button" onClick={async () => { if (data.customer?.id) await onOpslaanKlant(data.customer); }} style={secondaryButton}><RefreshCw size={16} /> Klant bijwerken</button>
         </div>
       </FactuurSectie>
 
       <FactuurSectie titel="Projectgegevens" icon={MapPin}>
-        <div style={grid2}>
+        <div style={responsiveGrid2}>
           <FInput label="Werkadres" value={data.project?.workAddress} onChange={v => update('project.workAddress', v)} />
           <FInput label="Postcode" value={data.project?.workPostalCode} onChange={v => update('project.workPostalCode', v)} />
           <FInput label="Plaats" value={data.project?.workCity} onChange={v => update('project.workCity', v)} />
@@ -5339,7 +5339,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
 
       <FactuurSectie titel="Factuurregels" icon={ClipboardList}>
         <Arbeidsregel onToevoegen={({ uren, tarief, monteurs }) => addItem({ description: `Arbeid monteurs${monteurs > 1 ? ` (${monteurs} monteurs)` : ''}`, quantity: String(Number(uren || 0) * Number(monteurs || 1)), unit: 'uur', unitPriceExVatCents: parseEuroToCents(tarief || '65,00') })} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '10px 0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, margin: '10px 0' }}>
           <button type="button" onClick={() => addItem()} style={secondaryButton}><Plus size={16} /> Regel toevoegen</button>
           <select style={factuurInput} onChange={e => { const item = STANDARD_INVOICE_ITEMS.find(x => x.description === e.target.value); if (item) addItem(item); e.target.value = ''; }}>
             <option value="">Keuzeregel toevoegen</option>
@@ -5356,7 +5356,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
                   <GripVertical size={16} color={COLORS.textLight} />
                   <input value={item.description} onChange={e => setItem(index, { description: e.target.value })} placeholder="Omschrijving" style={{ ...factuurInput, flex: 1 }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={responsiveGrid2}>
                   <FInput label="Aantal" type="number" value={item.quantity} onChange={v => setItem(index, { quantity: v })} />
                   <FSelect label="Eenheid" value={item.unit} onChange={v => setItem(index, { unit: v })} options={INVOICE_UNITS} />
                   <FInput label="Tarief excl. btw" inputMode="decimal" value={formatEuro(item.unitPriceExVatCents, false)} onChange={v => setItem(index, { unitPriceExVatCents: parseEuroToCents(v) })} />
@@ -5379,16 +5379,17 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
 
       <FactuurFotoSectie photos={data.photos || []} onChange={photos => update('photos', photos)} />
 
-      <div style={{ position: 'sticky', bottom: 82, zIndex: 80, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, background: 'rgba(245,247,250,0.92)', padding: 8, borderRadius: 16, backdropFilter: 'blur(10px)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, background: COLORS.white, border: `1px solid ${COLORS.border}`, padding: 12, borderRadius: 16, boxShadow: COLORS.shadowSoft, marginTop: 14, marginBottom: 24 }}>
         <button type="button" disabled={bezig} onClick={() => save()} style={primaryButton}><Save size={17} /> Concept opslaan</button>
         <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={17} /> Preview</button>
-        <button type="button" onClick={maakDefinitief} style={{ ...primaryButton, gridColumn: '1 / -1', background: COLORS.blue }}><CheckCircle size={17} /> Definitief maken</button>
+        <button type="button" onClick={maakDefinitief} style={{ ...primaryButton, background: COLORS.blue }}><CheckCircle size={17} /> Definitief maken</button>
       </div>
     </div>
   );
 }
 
 const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 };
+const responsiveGrid2 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10 };
 const primaryButton = { border: 'none', borderRadius: 12, padding: '12px 10px', background: COLORS.accent, color: COLORS.white, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer' };
 const secondaryButton = { border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 10px', background: COLORS.white, color: COLORS.blue, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer' };
 
@@ -5519,7 +5520,7 @@ function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onOpslaan }) {
         <p style={{ color: COLORS.textLight }}>{factuur.customer?.companyName || factuur.customer?.contactName} - {formatEuro(totalen.totalIncVatCents)}</p>
         <TotaalBox totalen={totalen} />
       </section>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
         <button type="button" onClick={onBewerk} style={secondaryButton}><Edit2 size={17} /> Bewerken</button>
         <button type="button" onClick={onPreview} style={primaryButton}><Download size={17} /> PDF</button>
         <button type="button" onClick={() => mark({ status: 'Verzonden' })} style={secondaryButton}><Send size={17} /> Verzonden</button>
@@ -5552,7 +5553,7 @@ function FactuurPdfPreview({ factuur, bedrijf, onOpslaan }) {
     <div style={{ display: 'grid', gap: 12 }}>
       <section style={factuurCard}>
         <h2 style={{ margin: '0 0 8px', color: COLORS.blue }}>PDF-preview</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8 }}>
           <button type="button" onClick={() => generate(false, false)} disabled={bezig} style={secondaryButton}><Eye size={17} /> Voorbeeld maken</button>
           <button type="button" onClick={() => generate(true, false)} disabled={bezig} style={primaryButton}><Download size={17} /> Download</button>
           <button type="button" onClick={() => generate(false, true)} disabled={bezig} style={secondaryButton}><Share2 size={17} /> Delen</button>
@@ -5580,7 +5581,7 @@ function BedrijfsInstellingen({ bedrijf, onOpslaan }) {
     <section style={factuurCard}>
       <h2 style={{ marginTop: 0, color: COLORS.blue }}>Bedrijfsinstellingen</h2>
       {melding && <div style={{ color: COLORS.green, fontWeight: 850, marginBottom: 10 }}>{melding}</div>}
-      <div style={grid2}>
+      <div style={responsiveGrid2}>
         <FInput label="Juridische bedrijfsnaam" value={data.legalName} onChange={v => update('legalName', v)} />
         <FInput label="Handelsnaam" value={data.tradeName} onChange={v => update('tradeName', v)} />
         <FInput label="Straat en huisnummer" value={data.address} onChange={v => update('address', v)} />
@@ -5597,7 +5598,7 @@ function BedrijfsInstellingen({ bedrijf, onOpslaan }) {
         <FSelect label="Standaard btw" value={data.defaultVatRate} onChange={v => update('defaultVatRate', v)} options={VAT_RATES} />
         <FInput label="Standaard uurtarief" value={formatEuro(data.defaultHourlyRateCents, false)} onChange={v => update('defaultHourlyRateCents', parseEuroToCents(v))} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 12 }}>
         <label style={secondaryButton}><Upload size={16} /> Logo uploaden<input type="file" accept="image/*" onChange={e => uploadAsset('logoUrl', e.target.files?.[0])} style={{ display: 'none' }} /></label>
         <label style={secondaryButton}><Upload size={16} /> QR-code uploaden<input type="file" accept="image/*" onChange={e => uploadAsset('reviewQrUrl', e.target.files?.[0])} style={{ display: 'none' }} /></label>
       </div>
@@ -5626,6 +5627,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   const W = 210, H = 297, margin = 12;
   const blue = [15, 45, 92], lightBlue = [30, 136, 229], text = [24, 34, 48], muted = [102, 112, 133];
+  const pdfEuro = cents => `€ ${(Number(cents || 0) / 100).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const logo = await imageToDataUrl(bedrijf.logoUrl || DEFAULT_COMPANY.logoUrl);
   const qr = await imageToDataUrl(bedrijf.reviewQrUrl || DEFAULT_COMPANY.reviewQrUrl);
   const totals = calculateInvoiceTotals(factuur.items || []);
@@ -5681,23 +5683,23 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.text(desc, margin + 3, y);
     doc.text(String(line.quantity).replace('.', ','), 88, y, { align: 'right' });
     doc.text(line.unit, 114, y, { align: 'center' });
-    doc.text(formatEuro(line.unitPriceExVatCents), 166, y, { align: 'right' });
-    doc.text(formatEuro(line.lineSubtotalCents), W - margin - 5, y, { align: 'right' });
+    doc.text(pdfEuro(line.unitPriceExVatCents), 166, y, { align: 'right' });
+    doc.text(pdfEuro(line.lineSubtotalCents), W - margin - 5, y, { align: 'right' });
     tableLine(y + rowH - 5);
     y += rowH;
   });
   const payY = Math.min(247, y + 10);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...text);
-  doc.text(split(`Wij verzoeken u het totaalbedrag van ${formatEuro(totals.totalIncVatCents)} uiterlijk op ${formatLongDateNl(factuur.dueDate)} over te maken naar IBAN ${bedrijf.iban}, onder vermelding van factuurnummer ${factuur.invoiceNumber}.`, 75), margin + 8, payY);
+  doc.text(split(`Wij verzoeken u het totaalbedrag van ${pdfEuro(totals.totalIncVatCents)} uiterlijk op ${formatLongDateNl(factuur.dueDate)} over te maken naar IBAN ${bedrijf.iban}, onder vermelding van factuurnummer ${factuur.invoiceNumber}.`, 75), margin + 8, payY);
   const boxX = 112, boxY = payY - 12;
   doc.setDrawColor(203, 213, 225); doc.roundedRect(boxX, boxY, 86, 32, 2, 2);
-  doc.setFontSize(9); doc.text('Subtotaal exclusief btw', boxX + 7, boxY + 9); doc.text(formatEuro(totals.subtotalExVatCents), boxX + 80, boxY + 9, { align: 'right' });
-  doc.text('Btw 21%', boxX + 7, boxY + 18); doc.text(formatEuro(totals.vatAmountCents), boxX + 80, boxY + 18, { align: 'right' });
+  doc.setFontSize(9); doc.text('Subtotaal exclusief btw', boxX + 7, boxY + 9); doc.text(pdfEuro(totals.subtotalExVatCents), boxX + 80, boxY + 9, { align: 'right' });
+  doc.text('Btw 21%', boxX + 7, boxY + 18); doc.text(pdfEuro(totals.vatAmountCents), boxX + 80, boxY + 18, { align: 'right' });
   doc.setDrawColor(...lightBlue); doc.line(boxX, boxY + 23, boxX + 86, boxY + 23);
-  doc.setFont('helvetica', 'bold'); doc.setTextColor(...blue); doc.text('TOTAAL INCLUSIEF BTW', boxX + 7, boxY + 29); doc.setFontSize(13); doc.text(formatEuro(totals.totalIncVatCents), boxX + 80, boxY + 29, { align: 'right' });
-  doc.setFontSize(9); doc.roundedRect(boxX, boxY + 38, 86, 24, 2, 2);
-  doc.text('Laat een Google review achter', boxX + 6, boxY + 49); doc.setFont('helvetica', 'normal'); doc.setTextColor(...text); doc.text('Uw mening wordt zeer gewaardeerd', boxX + 6, boxY + 56);
-  if (qr) doc.addImage(qr, 'PNG', boxX + 62, boxY + 41, 20, 20, undefined, 'FAST');
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(...blue); doc.text('TOTAAL INCLUSIEF BTW', boxX + 7, boxY + 29); doc.setFontSize(13); doc.text(pdfEuro(totals.totalIncVatCents), boxX + 80, boxY + 29, { align: 'right' });
+  doc.setFontSize(9); doc.roundedRect(boxX, boxY + 38, 86, 30, 2, 2);
+  doc.text('Laat een Google review achter', boxX + 6, boxY + 50); doc.setFont('helvetica', 'normal'); doc.setTextColor(...text); doc.text('Uw mening wordt zeer gewaardeerd', boxX + 6, boxY + 57);
+  if (qr) doc.addImage(qr, 'PNG', boxX + 57, boxY + 41, 25, 25, undefined, 'FAST');
   doc.setFontSize(7); doc.setTextColor(...muted); doc.text(bedrijf.footerText || DEFAULT_COMPANY.footerText, margin + 10, H - 27);
   footer(1, pages);
 
