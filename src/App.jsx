@@ -5068,6 +5068,15 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
     setBewerkenFactuur(null);
     setSubScherm('overzicht');
   };
+  const subtitel = subScherm === 'formulier'
+    ? (bewerkenFactuur?.invoiceNumber || 'Nieuwe factuur')
+    : subScherm === 'bekijken'
+      ? (bewerkenFactuur?.invoiceNumber || 'Factuur bekijken')
+      : subScherm === 'preview'
+        ? 'PDF-preview'
+        : subScherm === 'bedrijf'
+          ? 'Bedrijfsinstellingen'
+          : '';
 
   return (
     <main style={{ padding: '16px 14px 120px', maxWidth: 980, width: '100%', boxSizing: 'border-box', overflowX: 'hidden', margin: '0 auto' }}>
@@ -5079,6 +5088,16 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
           <button type="button" onClick={openNieuweFactuur} style={{ border: 'none', background: COLORS.blue, color: COLORS.white, borderRadius: 14, padding: '12px 14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}><Plus size={18} /> Nieuw</button>
         )}
       </div>
+
+      {subScherm !== 'overzicht' && (
+        <button
+          type="button"
+          onClick={terug}
+          style={{ width: '100%', margin: '0 0 14px', border: `1px solid ${COLORS.border}`, background: COLORS.white, color: COLORS.blue, borderRadius: 14, padding: '12px 14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8, boxShadow: COLORS.shadowSoft }}
+        >
+          <ArrowLeft size={18} /> Terug naar facturen{subtitel ? <span style={{ marginLeft: 'auto', color: COLORS.textLight, fontSize: 12, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitel}</span> : null}
+        </button>
+      )}
 
       {subScherm === 'overzicht' && (
         <FacturenOverzicht
