@@ -12,6 +12,8 @@ import {
   formatEuro,
   formatPostalCity,
   immutableSnapshot,
+  invoiceEmailBody,
+  invoiceEmailSubject,
   nextLocalInvoiceNumber,
   parseEuroToCents,
   validateInvoice,
@@ -163,6 +165,9 @@ assert.ok(appSource.includes('const tableBottomY = y - 5'), 'PDF-generator gebru
 assert.ok(appSource.includes('Math.min(tableBottomY + 8, maxLowerY)'), 'Onderste PDF-blokken starten direct onder de tabel met footerbescherming');
 assert.ok(appSource.includes('const infoBottomY = Math.max(customerY, projectY) + 2.5'), 'Klant- en projectsectie berekenen hun hoogte dynamisch');
 assert.ok(appSource.includes('Terug naar facturen'), 'Factuurdetails en PDF-preview moeten een terugknop naar het facturenoverzicht hebben');
+assert.ok(appSource.includes('FactuurEmailPreview'), 'Factuurmodule moet een e-mailpreview hebben');
+assert.ok(appSource.includes('/api/send-invoice-email'), 'Factuurmodule moet de server-side factuurmailroute gebruiken');
+assert.ok(appSource.includes('Factuur per e-mail versturen'), 'Factuurmodule toont een ontworpen e-mailscherm');
 assert.ok(appSource.includes('tariefTekst'), 'Tariefvelden in factuurregels moeten lokale tekstinvoer gebruiken tijdens typen');
 assert.ok(appSource.includes("!invoerActief && <div style={{ position: 'fixed'"), 'Mobiele actiebalk moet verdwijnen tijdens invoer met toetsenbord');
 assert.ok(appSource.includes('const descriptionTitleY = infoBottomY + 8'), 'Omschrijving start dynamisch onder klant/projectgegevens');
@@ -170,6 +175,13 @@ assert.ok(appSource.includes('const reviewBoxH = 27'), 'Reviewkaart heeft ruimte
 assert.ok(appSource.includes('25, 25'), 'QR-code wordt minimaal 25 bij 25 mm in de PDF geplaatst');
 assert.ok(appSource.includes('doc.getNumberOfPages()'), 'PDF-generator berekent footer-paginering na het maken van alle paginas');
 assert.ok(!appSource.includes("['Referentie:', factuur.project?.reference], ['Bijlage:', `${(factuur.photos || []).length}"), 'Lege referentie en nul fotos mogen niet geforceerd worden getoond');
+
+assert.ok(invoiceEmailSubject(invoice, companyComplete).includes(invoice.invoiceNumber), 'Factuur e-mailonderwerp bevat factuurnummer');
+const invoiceMail = invoiceEmailBody(invoice, companyComplete);
+assert.ok(invoiceMail.includes(formatEuro(voorbeeld.totalIncVatCents)), 'Factuur e-mail bevat het totaalbedrag');
+assert.ok(invoiceMail.includes(companyComplete.iban), 'Factuur e-mail bevat het IBAN');
+assert.ok(invoiceMail.includes(invoice.invoiceNumber), 'Factuur e-mail bevat het factuurnummer');
+assert.ok(invoiceMail.includes('uitgevoerde werkzaamheden'), 'Factuur e-mail bevat automatische factuurtekst');
 
 const quote = createEmptyQuote([], companyComplete);
 quote.customer.companyName = 'Veilinghuis Timothy';

@@ -21,6 +21,8 @@ import {
   formatLongDateNl,
   formatPostalCity,
   immutableSnapshot,
+  invoiceEmailBody,
+  invoiceEmailSubject,
   makeId,
   nextLocalInvoiceNumber,
   normalizeInvoiceItem,
@@ -5256,9 +5258,11 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
       ? (bewerkenFactuur?.invoiceNumber || 'Factuur bekijken')
       : subScherm === 'preview'
         ? 'PDF-preview'
-        : subScherm === 'bedrijf'
-          ? 'Bedrijfsinstellingen'
-          : '';
+        : subScherm === 'email'
+          ? 'Factuur e-mail'
+          : subScherm === 'bedrijf'
+            ? 'Bedrijfsinstellingen'
+            : '';
 
   return (
     <main style={{ padding: '16px 14px 120px', maxWidth: 980, width: '100%', boxSizing: 'border-box', overflowX: 'hidden', margin: '0 auto' }}>
@@ -5289,6 +5293,7 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
           onBekijk={(f) => openFactuur(f, 'bekijken')}
           onBewerk={(f) => openFactuur(f, 'formulier')}
           onPreview={(f) => openFactuur(f, 'preview')}
+          onEmail={(f) => openFactuur(f, 'email')}
           onVerwijder={onVerwijder}
           onDupliceer={async (f) => {
             const kopie = await maakNieuweFactuur(facturen, bedrijf);
@@ -5321,6 +5326,7 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
           bedrijf={bedrijf}
           onBewerk={() => setSubScherm('formulier')}
           onPreview={() => setSubScherm('preview')}
+          onEmail={() => setSubScherm('email')}
           onOpslaan={async (f) => {
             const opgeslagen = await onOpslaan(f);
             setBewerkenFactuur(opgeslagen);
@@ -5330,6 +5336,10 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
 
       {subScherm === 'preview' && bewerkenFactuur && (
         <FactuurPdfPreview factuur={bewerkenFactuur} bedrijf={bedrijf} onOpslaan={async (f) => { const opgeslagen = await onOpslaan(f); setBewerkenFactuur(opgeslagen); }} />
+      )}
+
+      {subScherm === 'email' && bewerkenFactuur && (
+        <FactuurEmailPreview factuur={bewerkenFactuur} bedrijf={bedrijf} onOpslaan={async (f) => { const opgeslagen = await onOpslaan(f); setBewerkenFactuur(opgeslagen); }} />
       )}
 
       {subScherm === 'bedrijf' && (
@@ -5345,7 +5355,7 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
   );
 }
 
-function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onPreview, onVerwijder, onDupliceer }) {
+function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onPreview, onEmail, onVerwijder, onDupliceer }) {
   const [zoek, setZoek] = useState('');
   const [status, setStatus] = useState('Alle');
   const [betaling, setBetaling] = useState('Alle');
@@ -5400,11 +5410,12 @@ function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onP
                   <StatusBadge status={f.paymentStatus} small />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginTop: 12 }}>
                 <IconButton title="Bekijken" icon={Eye} onClick={() => onBekijk(f)} />
                 <IconButton title="Bewerken" icon={Edit2} onClick={() => onBewerk(f)} />
                 <IconButton title="Dupliceren" icon={Copy} onClick={() => onDupliceer(f)} />
                 <IconButton title="PDF" icon={Download} onClick={() => onPreview(f)} />
+                <IconButton title="Mail" icon={Send} onClick={() => onEmail(f)} />
                 <IconButton title="Verwijderen" icon={Trash2} danger onClick={() => { if (confirm('Factuur verwijderen?')) onVerwijder(f.id); }} />
               </div>
             </article>
@@ -6029,6 +6040,82 @@ function OfferteEmailPreview({ offerte, bedrijf, onOpslaan }) {
   );
 }
 
+function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
+  const totalen = calculateInvoiceTotals(factuur.items || []);
+  const [to, setTo] = useState(factuur.customer?.email || '');
+  const [subject, setSubject] = useState(invoiceEmailSubject(factuur, bedrijf));
+  const [body, setBody] = useState(invoiceEmailBody(factuur, bedrijf));
+  const [melding, setMelding] = useState('');
+  const [bezig, setBezig] = useState(false);
+  const verstuur = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(to || '').trim())) {
+      setMelding('Voer eerst een geldig e-mailadres in.');
+      return;
+    }
+    setBezig(true);
+    const { dataUrl } = await genereerFactuurPdf(factuur, bedrijf);
+    const saved = {
+      ...factuur,
+      status: factuur.status === 'Concept' ? 'Verzonden' : factuur.status,
+      sentAt: new Date().toISOString(),
+      sentToEmail: to,
+      sentEmailSubject: subject,
+      sentEmailBody: body,
+      sentPdfDataUrl: dataUrl,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      const response = await fetch('/api/send-invoice-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to,
+          subject,
+          text: body,
+          invoiceNumber: factuur.invoiceNumber,
+          pdfDataUrl: dataUrl,
+          fileName: `Factuur-${factuur.invoiceNumber}.pdf`,
+        }),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Server-side e-mail is nog niet geconfigureerd.');
+      }
+      setMelding('Factuur per e-mail verzonden.');
+    } catch (e) {
+      const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(mailto, '_blank');
+      setMelding('Mail-app geopend. Voeg de PDF toe vanuit PDF bekijken als bijlage.');
+    } finally {
+      await onOpslaan(saved);
+      setBezig(false);
+    }
+  };
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <section style={{ ...factuurCard, background: COLORS.blue, color: COLORS.white }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 950 }}>Factuur per e-mail versturen</h2>
+        <p style={{ margin: '8px 0 0', color: '#DCEBFF', lineHeight: 1.5 }}>
+          {factuur.invoiceNumber} naar {factuur.customer?.companyName || factuur.customer?.contactName || 'klant'} - {formatEuro(totalen.totalIncVatCents)} incl. btw
+        </p>
+      </section>
+      <section style={factuurCard}>
+        {melding && <div style={{ marginBottom: 10, padding: 10, borderRadius: 12, background: melding.includes('geldig') ? '#FFF4F2' : COLORS.surfaceBlue, color: melding.includes('geldig') ? COLORS.red : COLORS.blue, fontWeight: 900 }}>{melding}</div>}
+        <FInput label="Ontvanger" value={to} onChange={setTo} inputMode="email" />
+        <FInput label="Onderwerp" value={subject} onChange={setSubject} />
+        <FTextarea label="Automatisch bericht" value={body} onChange={setBody} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
+          <button type="button" style={secondaryButton} onClick={async () => {
+            const { blob } = await genereerFactuurPdf(factuur, bedrijf);
+            downloadBlob(blob, `Factuur-${factuur.invoiceNumber}.pdf`);
+          }}><Download size={16} /> PDF downloaden</button>
+          <button type="button" disabled={bezig} style={primaryButton} onClick={verstuur}><Send size={16} /> {bezig ? 'Versturen...' : 'Versturen'}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function OffertePdfPreview({ offerte, bedrijf, onOpslaan }) {
   const [dataUrl, setDataUrl] = useState(offerte.finalizedPdfDataUrl || '');
   const maakPdf = async (download = false) => {
@@ -6234,7 +6321,7 @@ function FactuurFotoSectie({ photos, onChange }) {
   );
 }
 
-function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onOpslaan }) {
+function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onEmail, onOpslaan }) {
   const totalen = calculateInvoiceTotals(factuur.items || []);
   const mark = async (patch) => onOpslaan({ ...factuur, ...patch, updatedAt: new Date().toISOString() });
   return (
@@ -6247,6 +6334,7 @@ function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onOpslaan }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
         <button type="button" onClick={onBewerk} style={secondaryButton}><Edit2 size={17} /> Bewerken</button>
         <button type="button" onClick={onPreview} style={primaryButton}><Download size={17} /> PDF</button>
+        <button type="button" onClick={onEmail} style={secondaryButton}><Send size={17} /> Mailen</button>
         <button type="button" onClick={() => mark({ status: 'Verzonden' })} style={secondaryButton}><Send size={17} /> Verzonden</button>
         <button type="button" onClick={() => mark({ status: 'Betaald', paymentStatus: 'Betaald', paidAt: new Date().toISOString() })} style={secondaryButton}><Check size={17} /> Betaald</button>
         <button type="button" onClick={() => mark({ paymentStatus: 'Open', paidAt: '' })} style={secondaryButton}><RefreshCw size={17} /> Betaling ongedaan</button>

@@ -274,3 +274,32 @@ export function immutableSnapshot(invoice, company) {
   const totals = calculateInvoiceTotals(invoice.items || []);
   return JSON.stringify({ invoice, company, totals });
 }
+
+export function invoiceEmailSubject(invoice, company = DEFAULT_COMPANY) {
+  return `Factuur ${invoice.invoiceNumber} - ${company.legalName}`;
+}
+
+export function invoiceEmailBody(invoice, company = DEFAULT_COMPANY) {
+  const totals = calculateInvoiceTotals(invoice.items || []);
+  const customerName = invoice.customer?.companyName || invoice.customer?.contactName || '';
+  const aanhefNaam = String(customerName || '').trim();
+  const aanhef = aanhefNaam ? `Geachte heer/mevrouw ${aanhefNaam},` : 'Geachte heer/mevrouw,';
+  const dueDate = formatLongDateNl(invoice.dueDate);
+  return `${aanhef}
+
+In de bijlage ontvangt u factuur ${invoice.invoiceNumber} voor de uitgevoerde werkzaamheden.
+
+Totaalbedrag:
+${formatEuro(totals.totalIncVatCents)} inclusief btw
+
+Wij verzoeken u het totaalbedrag uiterlijk op ${dueDate} over te maken naar IBAN ${company.iban}, onder vermelding van factuurnummer ${invoice.invoiceNumber}.
+
+Heeft u vragen over deze factuur? Neem gerust contact met ons op.
+
+Met vriendelijke groet,
+
+${company.legalName}
+${company.phone}
+${company.email}
+${company.website}`;
+}
