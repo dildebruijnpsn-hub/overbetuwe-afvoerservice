@@ -5776,7 +5776,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   const W = 210, H = 297, margin = 10.8;
   const blue = [15, 45, 92], lightBlue = [30, 136, 229], paleBlue = [241, 247, 255], lineColor = [218, 226, 236], text = [24, 34, 48], muted = [92, 104, 122], gold = [255, 172, 0];
   const pdfEuro = cents => `â‚¬ ${(Number(cents || 0) / 100).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const logo = (await imageToDataUrl(bedrijf.logoUrl || DEFAULT_COMPANY.logoUrl)) || LOGO_DATA_URL;
+  const logo = (await imageToDataUrl('/overbetuwe-logo-pdf.png')) || (await imageToDataUrl(bedrijf.logoUrl || DEFAULT_COMPANY.logoUrl)) || LOGO_DATA_URL;
   const qr = await imageToDataUrl(DEFAULT_COMPANY.reviewQrUrl || bedrijf.reviewQrUrl);
   const totals = calculateInvoiceTotals(factuur.items || []);
   const pages = 1 + Math.ceil((factuur.photos || []).length / 6);
@@ -5829,7 +5829,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.text(`Pagina ${page} van ${total}`, W - margin, H - 4.2, { align: 'right' });
   };
 
-  if (logo) doc.addImage(logo, imageType(logo), margin, 10.5, 96, 29, undefined, 'FAST');
+  if (logo) doc.addImage(logo, imageType(logo), margin, 10.5, 96, 29, undefined, 'NONE');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); doc.setTextColor(...blue);
   doc.text(safe(bedrijf.legalName || DEFAULT_COMPANY.legalName), 140, 13.5);
   contactLine('T', bedrijf.phone || DEFAULT_COMPANY.phone, 21);
@@ -5915,15 +5915,15 @@ async function genereerFactuurPdf(factuur, bedrijf) {
 
   const reviewY = 255;
   doc.setDrawColor(...lineColor); doc.setFillColor(255, 255, 255);
-  doc.roundedRect(boxX, reviewY, 90, 22, 2, 2, 'FD');
+  doc.roundedRect(boxX, reviewY, 90, 23, 2, 2, 'FD');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); doc.setTextColor(...blue);
   doc.text('Laat een Google review achter', boxX + 5.5, reviewY + 8);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6); doc.setTextColor(...text);
   doc.text('Uw mening wordt zeer gewaardeerd', boxX + 5.5, reviewY + 13.8);
   doc.setFillColor(...gold);
   [0, 1, 2, 3, 4].forEach(i => doc.circle(boxX + 7 + i * 5.2, reviewY + 19, 1.15, 'F'));
-  doc.setDrawColor(...lineColor); doc.line(boxX + 59, reviewY + 3, boxX + 59, reviewY + 19);
-  if (qr) doc.addImage(qr, imageType(qr), boxX + 64, reviewY + 1.9, 20.5, 20.5, undefined, 'FAST');
+  doc.setDrawColor(...lineColor); doc.line(boxX + 59, reviewY + 3, boxX + 59, reviewY + 20);
+  if (qr) doc.addImage(qr, imageType(qr), boxX + 64, reviewY + 1.1, 21.8, 21.8, undefined, 'NONE');
 
   doc.setFillColor(242, 247, 255); doc.circle(margin + 5, H - 27, 3.8, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(...blue); doc.text('i', margin + 5, H - 25.2, { align: 'center' });
@@ -5935,7 +5935,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   for (let p = 0; p < Math.ceil(photos.length / 6); p++) {
     doc.addPage();
     const pageNo = p + 2;
-    if (logo) doc.addImage(logo, imageType(logo), margin, 12, 72, 22, undefined, 'FAST');
+    if (logo) doc.addImage(logo, imageType(logo), margin, 12, 72, 22, undefined, 'NONE');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...blue); doc.text('FOTOBIJLAGE', margin, 48);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...text);
     doc.text(`Factuurnummer: ${factuur.invoiceNumber}`, margin, 58);
