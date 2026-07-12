@@ -216,8 +216,12 @@ export function createEmptyInvoice(existingInvoices = [], company = DEFAULT_COMP
 export function validateInvoice(invoice, company) {
   const errors = [];
   const totals = calculateInvoiceTotals(invoice.items || []);
+  const customerEmail = String(invoice.customer?.email || '').trim();
+  const customerPhone = String(invoice.customer?.phone || '').trim();
+  const customerPhoneDigits = customerPhone.replace(/\D/g, '');
   if (!company.legalName) errors.push('Vul eerst de juridische bedrijfsnaam in voordat u deze factuur definitief maakt.');
   if (!company.address || !company.postalCode || !company.city) errors.push('Vul eerst het vestigingsadres van uw bedrijf in voordat u deze factuur definitief maakt.');
+  if (!company.kvkNumber) errors.push('Vul eerst het KvK-nummer van uw bedrijf in.');
   if (!company.vatNumber) errors.push('Vul eerst het btw-identificatienummer van uw bedrijf in.');
   if (!company.iban) errors.push('Vul eerst het IBAN in.');
   if (!invoice.invoiceNumber) errors.push('Factuurnummer ontbreekt.');
@@ -225,6 +229,8 @@ export function validateInvoice(invoice, company) {
   if (!invoice.project?.deliveryDateFrom) errors.push('Vul een uitvoeringsdatum in.');
   if (!invoice.customer?.companyName && !invoice.customer?.contactName) errors.push('Vul de klantnaam in.');
   if (!invoice.customer?.address || !invoice.customer?.postalCode || !invoice.customer?.city) errors.push('Vul het volledige klantadres in.');
+  if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) errors.push('Voer een geldig e-mailadres in.');
+  if (customerPhone && customerPhoneDigits.length < 10) errors.push('Voer een geldig telefoonnummer in.');
   if (!invoice.project?.description) errors.push('Vul een omschrijving van de werkzaamheden in.');
   if (!Array.isArray(invoice.items) || invoice.items.length === 0) errors.push('Voeg minimaal een factuurregel toe.');
   if (totals.subtotalExVatCents <= 0) errors.push('Het bedrag exclusief btw moet groter zijn dan € 0,00.');
@@ -233,7 +239,7 @@ export function validateInvoice(invoice, company) {
     const line = calculateLine(item);
     if (!line.description) errors.push(`Vul een omschrijving in bij regel ${index + 1}.`);
     if (line.quantityNumber <= 0) errors.push(`Vul een geldig aantal in bij regel ${index + 1}.`);
-    if (line.unitPriceExVatCents < 0) errors.push(`Vul een geldig tarief in bij regel ${index + 1}.`);
+    if (line.unitPriceExVatCents <= 0) errors.push(`Vul een geldig tarief in bij regel ${index + 1}.`);
     if (!VAT_RATES.includes(String(line.vatRate))) errors.push(`Kies een geldig btw-percentage bij regel ${index + 1}.`);
   });
   return errors;
