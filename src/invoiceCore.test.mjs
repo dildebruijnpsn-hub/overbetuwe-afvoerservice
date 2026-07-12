@@ -9,6 +9,7 @@ import {
   ONTSTOPPING_EX_VAT_CENTS,
   STANDARD_INVOICE_ITEMS,
   formatAddressParts,
+  formatEmailForMobileShare,
   formatEuro,
   formatPostalCity,
   immutableSnapshot,
@@ -190,7 +191,9 @@ assert.ok(invoiceMail.includes('Wij verzoeken u dit bedrag uiterlijk'), 'Factuur
 assert.ok(invoiceMail.includes('U kunt ons bereiken via'), 'Factuur e-mail bevat compacte contactinformatie');
 assert.ok(!invoiceMail.includes('Factuurbedrag:'), 'Factuur e-mail gebruikt geen losse labels die mobiel rommelig samenklappen');
 assert.ok(appSource.includes('totalen.totalIncVatCents <= 0'), 'Factuur van nul euro mag niet worden doorgestuurd');
-assert.ok(appSource.includes("body.replace(/\\r?\\n/g, '\\r\\n')"), 'Mobiele mailoverdracht moet alinea-opmaak behouden');
+const mobieleMail = formatEmailForMobileShare('Aanhef\n\nEerste alinea\r\nTweede regel');
+assert.equal(mobieleMail, 'Aanhef\u2028\u2028Eerste alinea\u2028Tweede regel', 'Mobiele mailoverdracht behoudt regels met Unicode-regelscheidingen');
+assert.ok(appSource.includes('formatEmailForMobileShare(body)'), 'Factuurmail gebruikt de Gmail/iPhone-veilige regelscheidingen');
 assert.ok(!appSource.slice(appSource.indexOf('function FactuurEmailPreview')).includes('Ontvanger: ${to}'), 'Ontvanger mag niet onderaan de factuurmail worden toegevoegd');
 
 const quote = createEmptyQuote([], companyComplete);

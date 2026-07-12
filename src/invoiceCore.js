@@ -279,6 +279,13 @@ export function invoiceEmailSubject(invoice, company = DEFAULT_COMPANY) {
   return `Factuur ${invoice.invoiceNumber} - ${company.legalName}`;
 }
 
+export function formatEmailForMobileShare(value) {
+  return String(value || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n/g, '\u2028');
+}
+
 export function invoiceEmailBody(invoice, company = DEFAULT_COMPANY) {
   const totals = calculateInvoiceTotals(invoice.items || []);
   const dueDate = formatLongDateNl(invoice.dueDate);

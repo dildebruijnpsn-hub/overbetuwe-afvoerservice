@@ -17,6 +17,7 @@ import {
   formatAddressParts,
   formatCurrencyNL,
   formatDateNl,
+  formatEmailForMobileShare,
   formatEuro,
   formatLongDateNl,
   formatPostalCity,
@@ -6094,7 +6095,7 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
         try {
           await navigator.share({
             title: subject,
-            text: body.replace(/\r?\n/g, '\r\n'),
+            text: formatEmailForMobileShare(body),
             files: [pdfFile],
           });
           await onOpslaan({
