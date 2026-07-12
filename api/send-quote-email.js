@@ -1,3 +1,5 @@
+import { renderDocumentEmail } from './_email-template.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -34,6 +36,7 @@ export default async function handler(req, res) {
         reply_to: process.env.QUOTE_EMAIL_REPLY_TO || 'info@overbetuweafvoerservice.nl',
         subject,
         text,
+        html: renderDocumentEmail({ type: 'quote', documentNumber: body.quoteNumber, text }),
         attachments: [{
           filename: fileName,
           content: pdfDataUrl.replace('data:application/pdf;base64,', ''),

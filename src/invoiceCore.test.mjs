@@ -229,6 +229,13 @@ assert.equal(draftInvoice.linkedQuoteNumber, quote.quoteNumber, 'Factuur bewaart
 assert.equal(draftInvoice.items[0].quantity, '32', 'Omgezette factuur behoudt 32 arbeidsuren');
 
 const quotePdfSource = fs.readFileSync(new URL('./quotePdf.js', import.meta.url), 'utf8');
+const invoiceEmailApiSource = fs.readFileSync(new URL('../api/send-invoice-email.js', import.meta.url), 'utf8');
+const quoteEmailApiSource = fs.readFileSync(new URL('../api/send-quote-email.js', import.meta.url), 'utf8');
+const emailTemplateSource = fs.readFileSync(new URL('../api/_email-template.js', import.meta.url), 'utf8');
+assert.ok(invoiceEmailApiSource.includes("type: 'invoice'"), 'Factuurmail gebruikt het professionele HTML-ontwerp');
+assert.ok(quoteEmailApiSource.includes("type: 'quote'"), 'Offertemail gebruikt het professionele HTML-ontwerp');
+assert.ok(emailTemplateSource.includes('De PDF van deze'), 'Professionele e-mail vermeldt de PDF-bijlage');
+assert.ok(emailTemplateSource.includes('Overbetuwe Riool- en Afvoerservice B.V.'), 'Professionele e-mail bevat de bedrijfsafsluiting');
 assert.ok(quotePdfSource.includes('OFFERTE'), 'Offerte-PDF toont offertetitel');
 assert.ok(quotePdfSource.includes('GELDIGHEID EN AKKOORD VIA E-MAIL'), 'Offerte-PDF toont geldigheid en akkoordtekst');
 assert.ok(quotePdfSource.includes('AKKOORD GEVEN VIA E-MAIL'), 'Offerte-PDF toont akkoordblok');
