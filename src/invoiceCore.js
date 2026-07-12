@@ -258,13 +258,15 @@ export function validateInvoice(invoice, company) {
   if (customerPhone && customerPhoneDigits.length < 10) errors.push('Voer een geldig telefoonnummer in.');
   if (!invoice.project?.description) errors.push('Vul een omschrijving van de werkzaamheden in.');
   if (!Array.isArray(invoice.items) || invoice.items.length === 0) errors.push('Voeg minimaal een factuurregel toe.');
-  if (totals.subtotalExVatCents <= 0) errors.push('Het bedrag exclusief btw moet groter zijn dan € 0,00.');
+  const isCredit = invoice.documentType === 'credit';
+  if (!isCredit && totals.subtotalExVatCents <= 0) errors.push('Het bedrag exclusief btw moet groter zijn dan € 0,00.');
+  if (isCredit && totals.subtotalExVatCents >= 0) errors.push('Het creditbedrag moet lager zijn dan € 0,00.');
   if (!invoice.paymentTermDays && !invoice.dueDate) errors.push('Vul een betaaltermijn of vervaldatum in.');
   (invoice.items || []).forEach((item, index) => {
     const line = calculateLine(item);
     if (!line.description) errors.push(`Vul een omschrijving in bij regel ${index + 1}.`);
     if (line.quantityNumber <= 0) errors.push(`Vul een geldig aantal in bij regel ${index + 1}.`);
-    if (line.unitPriceExVatCents <= 0) errors.push(`Vul een geldig tarief in bij regel ${index + 1}.`);
+    if ((!isCredit && line.unitPriceExVatCents <= 0) || (isCredit && line.unitPriceExVatCents >= 0)) errors.push(`Vul een geldig tarief in bij regel ${index + 1}.`);
     if (!VAT_RATES.includes(String(line.vatRate))) errors.push(`Kies een geldig btw-percentage bij regel ${index + 1}.`);
   });
   return errors;
@@ -277,6 +279,64 @@ export function immutableSnapshot(invoice, company) {
 
 export function invoiceEmailSubject(invoice, company = DEFAULT_COMPANY) {
   return `Factuur ${invoice.invoiceNumber} - ${company.legalName}`;
+}
+
+export function invoiceDisplayStatus(invoice, now = new Date()) {
+  if (!invoice) return 'Concept';
+  if (invoice.paymentStatus === 'Betaald' || invoice.status === 'Geannuleerd') return invoice.status;
+  if (invoice.dueDate && new Date(`${invoice.dueDate}T23:59:59`) < now) return 'Vervallen';
+  return invoice.status || 'Concept';
+}
+
+export function invoiceReminderSubject(invoice, company = DEFAULT_COMPANY) {
+  return `Betalingsherinnering factuur ${invoice.invoiceNumber} - ${company.legalName}`;
+}
+
+export function invoiceReminderBody(invoice, company = DEFAULT_COMPANY) {
+  const totals = calculateInvoiceTotals(invoice.items || []);
+  return `Geachte heer/mevrouw,
+
+Volgens onze administratie staat factuur ${invoice.invoiceNumber} met een bedrag van ${formatEuro(totals.totalIncVatCents)} nog open. De vervaldatum was ${formatLongDateNl(invoice.dueDate)}.
+
+Wij verzoeken u het openstaande bedrag binnen zeven dagen over te maken naar IBAN ${company.iban}, onder vermelding van ${invoice.invoiceNumber}.
+
+Heeft u inmiddels betaald? Dan kunt u deze herinnering als niet verzonden beschouwen. Heeft u vragen, neem dan gerust contact met ons op via ${company.phone} of ${company.email}.
+
+Met vriendelijke groet,
+
+${company.legalName}`;
+}
+
+export function createCreditInvoiceDraft(original, numberData) {
+  return {
+    ...JSON.parse(JSON.stringify(original)),
+    id: makeId('credit'),
+    ...numberData,
+    documentType: 'credit',
+    creditedInvoiceId: original.id,
+    creditedInvoiceNumber: original.invoiceNumber,
+    invoiceDate: todayIso(),
+    dueDate: todayIso(),
+    items: (original.items || []).map((item, index) => normalizeInvoiceItem({
+      ...item,
+      id: makeId('creditregel'),
+      unitPriceExVatCents: -Math.abs(Number(item.unitPriceExVatCents || 0)),
+      sortOrder: index,
+    }, index)),
+    status: 'Concept',
+    paymentStatus: 'Open',
+    finalizedAt: '',
+    paidAt: '',
+    finalizedPdfDataUrl: '',
+    sentPdfDataUrl: '',
+    project: {
+      ...(original.project || {}),
+      reference: `Credit op ${original.invoiceNumber}`,
+      description: `Creditering van factuur ${original.invoiceNumber}. ${original.project?.description || ''}`.trim(),
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function formatEmailForMobileShare(value) {

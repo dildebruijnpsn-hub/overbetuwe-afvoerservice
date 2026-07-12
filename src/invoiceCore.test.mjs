@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {
   calculateInvoiceTotals,
   calculateLine,
+  createCreditInvoiceDraft,
   createEmptyInvoice,
   createExampleItems,
   DEFAULT_COMPANY,
@@ -15,6 +16,9 @@ import {
   immutableSnapshot,
   invoiceEmailBody,
   invoiceEmailSubject,
+  invoiceDisplayStatus,
+  invoiceReminderBody,
+  invoiceReminderSubject,
   nextLocalInvoiceNumber,
   parseEuroToCents,
   validateInvoice,
@@ -167,6 +171,12 @@ assert.ok(appSource.includes('Math.min(tableBottomY + 8, maxLowerY)'), 'Onderste
 assert.ok(appSource.includes('const infoBottomY = Math.max(customerY, projectY) + 2.5'), 'Klant- en projectsectie berekenen hun hoogte dynamisch');
 assert.ok(appSource.includes('Terug naar facturen'), 'Factuurdetails en PDF-preview moeten een terugknop naar het facturenoverzicht hebben');
 assert.ok(appSource.includes('FactuurEmailPreview'), 'Factuurmodule moet een e-mailpreview hebben');
+assert.ok(appSource.includes('Betalingsherinnering versturen'), 'Factuurmodule moet betalingsherinneringen kunnen versturen');
+assert.ok(appSource.includes('Creditfactuur'), 'Factuurmodule moet creditfacturen kunnen aanmaken');
+assert.ok(appSource.includes('uploadDocumentBlob'), 'Definitieve documenten moeten online bewaard kunnen worden');
+assert.ok(appSource.includes('backupPhotosOnline'), 'Factuur- en offertefoto’s moeten online geback-upt kunnen worden');
+assert.ok(appSource.includes('Inbegrepen werkzaamheden'), 'Offerteformulier maakt inbegrepen werkzaamheden expliciet');
+assert.ok(appSource.includes('Niet inbegrepen'), 'Offerteformulier maakt uitgesloten werkzaamheden expliciet');
 assert.ok(appSource.includes('/api/send-invoice-email'), 'Factuurmodule moet de server-side factuurmailroute gebruiken');
 assert.ok(appSource.includes("files: [pdfFile]"), 'Mobiele mail-flow moet de factuur-PDF als bestand delen');
 assert.ok(appSource.includes("navigator.canShare?.({ files: [pdfFile] })"), 'Mobiele mail-flow moet controleren of PDF-bestanden gedeeld kunnen worden');
@@ -186,17 +196,28 @@ assert.ok(invoiceMail.includes(formatEuro(voorbeeld.totalIncVatCents)), 'Factuur
 assert.ok(invoiceMail.includes(companyComplete.iban), 'Factuur e-mail bevat het IBAN');
 assert.ok(invoiceMail.includes(invoice.invoiceNumber), 'Factuur e-mail bevat het factuurnummer');
 assert.ok(invoiceMail.includes('uitgevoerde werkzaamheden'), 'Factuur e-mail bevat automatische factuurtekst');
+const overdueInvoice = { ...invoice, status: 'Verzonden', paymentStatus: 'Open', dueDate: '2026-01-01' };
+assert.equal(invoiceDisplayStatus(overdueInvoice, new Date('2026-07-12T12:00:00')), 'Vervallen', 'Open factuur na vervaldatum wordt automatisch vervallen');
+assert.ok(invoiceReminderSubject(overdueInvoice, companyComplete).includes(invoice.invoiceNumber), 'Herinneringsonderwerp bevat factuurnummer');
+assert.ok(invoiceReminderBody(overdueInvoice, companyComplete).includes('binnen zeven dagen'), 'Herinneringsmail bevat een duidelijke betaaltermijn');
+const credit = createCreditInvoiceDraft(invoice, { invoiceNumber: 'F2026-0099', invoiceYear: 2026, sequenceNumber: 99 });
+assert.equal(credit.documentType, 'credit', 'Creditfactuur krijgt een apart documenttype');
+assert.equal(credit.creditedInvoiceNumber, invoice.invoiceNumber, 'Creditfactuur is gekoppeld aan de oorspronkelijke factuur');
+assert.ok(calculateInvoiceTotals(credit.items).totalIncVatCents < 0, 'Creditfactuur heeft negatieve totalen');
+assert.deepEqual(validateInvoice(credit, companyComplete), [], 'Volledige creditfactuur moet valide zijn');
 assert.ok(invoiceMail.includes('Het factuurbedrag is'), 'Factuur e-mail gebruikt een zakelijke betalingszin');
 assert.ok(invoiceMail.includes('Wij verzoeken u dit bedrag uiterlijk'), 'Factuur e-mail bevat een duidelijke betaalinstructie');
 assert.ok(invoiceMail.includes('U kunt ons bereiken via'), 'Factuur e-mail bevat compacte contactinformatie');
 assert.ok(!invoiceMail.includes('Factuurbedrag:'), 'Factuur e-mail gebruikt geen losse labels die mobiel rommelig samenklappen');
-assert.ok(appSource.includes('totalen.totalIncVatCents <= 0'), 'Factuur van nul euro mag niet worden doorgestuurd');
+assert.ok(appSource.includes('totalen.totalIncVatCents === 0'), 'Factuur van nul euro mag niet worden doorgestuurd');
 const mobieleMail = formatEmailForMobileShare('Aanhef\n\nEerste alinea\r\nTweede regel');
 assert.equal(mobieleMail, 'Aanhef\u2028\u2028Eerste alinea\u2028Tweede regel', 'Mobiele mailoverdracht behoudt regels met Unicode-regelscheidingen');
 assert.ok(appSource.includes('formatEmailForMobileShare(body)'), 'Factuurmail gebruikt de Gmail/iPhone-veilige regelscheidingen');
 assert.ok(!appSource.slice(appSource.indexOf('function FactuurEmailPreview')).includes('Ontvanger: ${to}'), 'Ontvanger mag niet onderaan de factuurmail worden toegevoegd');
 
 const quote = createEmptyQuote([], companyComplete);
+assert.equal(quote.project.includedWork, '', 'Nieuwe offerte heeft een veld voor inbegrepen werkzaamheden');
+assert.equal(quote.project.excludedWork, '', 'Nieuwe offerte heeft een veld voor niet-inbegrepen werkzaamheden');
 quote.customer.companyName = 'Veilinghuis Timothy';
 quote.customer.address = 'Dorpsstraat 61';
 quote.customer.postalCode = '6677 PJ';

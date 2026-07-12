@@ -12,6 +12,7 @@ import {
   INVOICE_STORAGE_KEYS,
   addDaysIso,
   calculateInvoiceTotals,
+  createCreditInvoiceDraft,
   createEmptyInvoice,
   createExampleItems,
   formatAddressParts,
@@ -24,6 +25,9 @@ import {
   immutableSnapshot,
   invoiceEmailBody,
   invoiceEmailSubject,
+  invoiceDisplayStatus,
+  invoiceReminderBody,
+  invoiceReminderSubject,
   makeId,
   nextLocalInvoiceNumber,
   normalizeInvoiceItem,
@@ -505,6 +509,48 @@ async function supabaseRequest(path, opties = {}) {
   return data;
 }
 
+async function uploadDocumentBlob(path, blob) {
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/oras-documenten/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': blob.type || 'application/octet-stream',
+      'x-upsert': 'true',
+    },
+    body: blob,
+  });
+  if (!response.ok) throw new Error((await response.text()) || 'Online documentopslag mislukt.');
+  return `${SUPABASE_URL}/storage/v1/object/public/oras-documenten/${path}`;
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [meta, encoded] = String(dataUrl || '').split(',');
+  const mime = meta?.match(/^data:([^;]+);base64$/)?.[1];
+  if (!mime || !encoded) return null;
+  const bytes = atob(encoded);
+  const buffer = new Uint8Array(bytes.length);
+  for (let index = 0; index < bytes.length; index += 1) buffer[index] = bytes.charCodeAt(index);
+  return new Blob([buffer], { type: mime });
+}
+
+async function backupPhotosOnline(documentType, documentId, photos = []) {
+  return Promise.all((photos || []).map(async (photo, index) => {
+    if (photo.storageUrl || !String(photo.src || '').startsWith('data:')) return photo;
+    const blob = dataUrlToBlob(photo.src);
+    if (!blob) return photo;
+    const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+    try {
+      const storagePath = `${documentType}/${documentId}/foto-${String(index + 1).padStart(2, '0')}.${extension}`;
+      const storageUrl = await uploadDocumentBlob(storagePath, blob);
+      return { ...photo, storagePath, storageUrl };
+    } catch (error) {
+      console.warn('Foto blijft lokaal bewaard; online foto-opslag is nog niet beschikbaar.', error);
+      return photo;
+    }
+  }));
+}
+
 async function laadStoringen() {
   const lokaal = leesJson(STORAGE_KEYS.storingen, []);
 
@@ -765,7 +811,8 @@ async function bewaarFactuurSet(facturen) {
 }
 
 async function bewaarFactuurDb(invoice) {
-  const saved = { ...invoice, updatedAt: new Date().toISOString() };
+  const photos = await backupPhotosOnline('facturen', invoice.id, invoice.photos || []);
+  const saved = { ...invoice, photos, updatedAt: new Date().toISOString() };
   const lokaal = leesJson(INVOICE_STORAGE_KEYS.invoices, []);
   const nieuw = lokaal.some(f => f.id === saved.id) ? lokaal.map(f => f.id === saved.id ? saved : f) : [saved, ...lokaal];
   schrijfJson(INVOICE_STORAGE_KEYS.invoices, nieuw);
@@ -902,7 +949,8 @@ async function laadOffertes() {
 }
 
 async function bewaarOfferteDb(quote) {
-  const saved = { ...quote, updatedAt: new Date().toISOString() };
+  const photos = await backupPhotosOnline('offertes', quote.id, quote.photos || []);
+  const saved = { ...quote, photos, updatedAt: new Date().toISOString() };
   const lokaal = leesJson(QUOTE_STORAGE_KEYS.quotes, []);
   const nieuw = lokaal.some(q => q.id === saved.id) ? lokaal.map(q => q.id === saved.id ? saved : q) : [saved, ...lokaal];
   schrijfJson(QUOTE_STORAGE_KEYS.quotes, nieuw);
@@ -5261,9 +5309,11 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
         ? 'PDF-preview'
         : subScherm === 'email'
           ? 'Factuur e-mail'
-          : subScherm === 'bedrijf'
-            ? 'Bedrijfsinstellingen'
-            : '';
+          : subScherm === 'herinnering'
+            ? 'Betalingsherinnering'
+            : subScherm === 'bedrijf'
+              ? 'Bedrijfsinstellingen'
+              : '';
 
   return (
     <main style={{ padding: '16px 14px 120px', maxWidth: 980, width: '100%', boxSizing: 'border-box', overflowX: 'hidden', margin: '0 auto' }}>
@@ -5328,6 +5378,18 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
           onBewerk={() => setSubScherm('formulier')}
           onPreview={() => setSubScherm('preview')}
           onEmail={() => setSubScherm('email')}
+          onReminder={() => setSubScherm('herinnering')}
+          onCredit={async () => {
+            const nummer = await maakNieuweFactuur(facturen, bedrijf);
+            const credit = createCreditInvoiceDraft(bewerkenFactuur, {
+              invoiceNumber: nummer.invoiceNumber,
+              invoiceYear: nummer.invoiceYear,
+              sequenceNumber: nummer.sequenceNumber,
+            });
+            const opgeslagen = await onOpslaan(credit);
+            setBewerkenFactuur(opgeslagen);
+            setSubScherm('formulier');
+          }}
           onOpslaan={async (f) => {
             const opgeslagen = await onOpslaan(f);
             setBewerkenFactuur(opgeslagen);
@@ -5341,6 +5403,10 @@ function FacturenModule({ facturen, klanten, bedrijf, online, subScherm, setSubS
 
       {subScherm === 'email' && bewerkenFactuur && (
         <FactuurEmailPreview factuur={bewerkenFactuur} bedrijf={bedrijf} onOpslaan={async (f) => { const opgeslagen = await onOpslaan(f); setBewerkenFactuur(opgeslagen); }} />
+      )}
+
+      {subScherm === 'herinnering' && bewerkenFactuur && (
+        <FactuurEmailPreview mode="reminder" factuur={bewerkenFactuur} bedrijf={bedrijf} onOpslaan={async (f) => { const opgeslagen = await onOpslaan(f); setBewerkenFactuur(opgeslagen); }} />
       )}
 
       {subScherm === 'bedrijf' && (
@@ -5362,14 +5428,14 @@ function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onP
   const [betaling, setBetaling] = useState('Alle');
   const gefilterd = facturen.filter(f => {
     const tekst = `${f.invoiceNumber || ''} ${f.customer?.companyName || ''} ${f.customer?.contactName || ''} ${f.invoiceDate || ''}`.toLowerCase();
-    return (!zoek || tekst.includes(zoek.toLowerCase())) && (status === 'Alle' || f.status === status) && (betaling === 'Alle' || f.paymentStatus === betaling);
+    return (!zoek || tekst.includes(zoek.toLowerCase())) && (status === 'Alle' || invoiceDisplayStatus(f) === status) && (betaling === 'Alle' || f.paymentStatus === betaling);
   });
   const kaarten = useMemo(() => {
     const open = facturen.filter(f => !['Betaald', 'Geannuleerd'].includes(f.paymentStatus)).reduce((s, f) => s + calculateInvoiceTotals(f.items || []).totalIncVatCents, 0);
     return [
       { label: 'Openstaand bedrag', value: formatEuro(open), color: COLORS.blue },
       { label: 'Betaalde facturen', value: facturen.filter(f => f.paymentStatus === 'Betaald').length, color: COLORS.green },
-      { label: 'Vervallen facturen', value: facturen.filter(f => f.status === 'Vervallen' || f.paymentStatus === 'Te laat').length, color: COLORS.red },
+      { label: 'Vervallen facturen', value: facturen.filter(f => invoiceDisplayStatus(f) === 'Vervallen').length, color: COLORS.red },
       { label: 'Conceptfacturen', value: facturen.filter(f => f.status === 'Concept').length, color: COLORS.blueLight },
     ];
   }, [facturen]);
@@ -5407,7 +5473,7 @@ function FacturenOverzicht({ facturen, bedrijf, onNieuw, onBekijk, onBewerk, onP
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontWeight: 950, color: COLORS.text }}>{formatEuro(totalen.totalIncVatCents)}</div>
-                  <StatusBadge status={f.status} />
+                  <StatusBadge status={invoiceDisplayStatus(f)} />
                   <StatusBadge status={f.paymentStatus} small />
                 </div>
               </div>
@@ -5877,6 +5943,8 @@ function OfferteFormulier({ offerte, offertes, klanten, bedrijf, onOpslaan, onOp
             <FInput label="Uitvoeringsduur" value={data.project?.expectedDuration} onChange={v => update('project.expectedDuration', v)} />
           </div>
           <FTextarea label="Omschrijving opdracht" value={data.project?.description} onChange={v => update('project.description', v)} />
+          <FTextarea label="Inbegrepen werkzaamheden" value={data.project?.includedWork || ''} onChange={v => update('project.includedWork', v)} placeholder="Wat is inbegrepen in deze offerte?" />
+          <FTextarea label="Niet inbegrepen" value={data.project?.excludedWork || ''} onChange={v => update('project.excludedWork', v)} placeholder="Wat valt buiten deze offerte?" />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
             <button type="button" onClick={() => update('project.description', 'Vervanging van het bestaande riooltracé, inclusief graafwerk, PVC-materialen, afvoer en herstel.')} style={secondaryButton}>Rioolvervanging</button>
             <button type="button" onClick={() => update('project.description', 'Ontstoppingswerkzaamheden uitgevoerd, leiding gereinigd en afvoer gecontroleerd.')} style={secondaryButton}>Ontstopping</button>
@@ -5946,6 +6014,8 @@ function OfferteFormulier({ offerte, offertes, klanten, bedrijf, onOpslaan, onOp
           <div style={{ ...factuurCard, marginTop: 12, boxShadow: 'none', background: COLORS.bg }}>
             <strong>Klant</strong><div>{klantNaam || 'Niet ingevuld'}</div>
             <strong style={{ display: 'block', marginTop: 8 }}>Project</strong><div>{formatAddressParts(data.project?.workAddress, data.project?.workCity)}</div>
+            {data.project?.includedWork && <><strong style={{ display: 'block', marginTop: 8 }}>Inbegrepen</strong><div>{data.project.includedWork}</div></>}
+            {data.project?.excludedWork && <><strong style={{ display: 'block', marginTop: 8 }}>Niet inbegrepen</strong><div>{data.project.excludedWork}</div></>}
             <strong style={{ display: 'block', marginTop: 8 }}>Totaal</strong><div>{formatEuro(totalen.totalIncVatCents)} incl. btw</div>
           </div>
           {basisFouten.length > 0 && <div style={{ marginTop: 12, border: `1px solid ${COLORS.red}`, borderRadius: 14, padding: 12, background: '#FFF4F2', color: COLORS.red, fontWeight: 800 }}>{basisFouten.map(f => <div key={f}>{f}</div>)}</div>}
@@ -6041,11 +6111,12 @@ function OfferteEmailPreview({ offerte, bedrijf, onOpslaan }) {
   );
 }
 
-function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
+function FactuurEmailPreview({ factuur, bedrijf, onOpslaan, mode = 'invoice' }) {
   const totalen = calculateInvoiceTotals(factuur.items || []);
+  const isReminder = mode === 'reminder';
   const [to, setTo] = useState(factuur.customer?.email || '');
-  const [subject, setSubject] = useState(invoiceEmailSubject(factuur, bedrijf));
-  const [body, setBody] = useState(invoiceEmailBody(factuur, bedrijf));
+  const [subject, setSubject] = useState(isReminder ? invoiceReminderSubject(factuur, bedrijf) : invoiceEmailSubject(factuur, bedrijf));
+  const [body, setBody] = useState(isReminder ? invoiceReminderBody(factuur, bedrijf) : invoiceEmailBody(factuur, bedrijf));
   const [melding, setMelding] = useState('');
   const [bezig, setBezig] = useState(false);
   const verstuur = async () => {
@@ -6053,7 +6124,7 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
       setMelding('Voer eerst een geldig e-mailadres in.');
       return;
     }
-    if (totalen.totalIncVatCents <= 0) {
+    if (totalen.totalIncVatCents === 0) {
       setMelding('Voeg eerst een factuurregel met een geldig bedrag toe.');
       return;
     }
@@ -6079,15 +6150,17 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
       }
       await onOpslaan({
         ...factuur,
-        status: factuur.status === 'Concept' ? 'Verzonden' : factuur.status,
+        status: !isReminder && factuur.status === 'Concept' ? 'Verzonden' : factuur.status,
         sentAt: new Date().toISOString(),
         sentToEmail: to,
         sentEmailSubject: subject,
         sentEmailBody: body,
         sentPdfDataUrl: dataUrl,
+        reminders: isReminder ? [...(factuur.reminders || []), { sentAt: new Date().toISOString(), to, subject }] : (factuur.reminders || []),
+        lastReminderAt: isReminder ? new Date().toISOString() : (factuur.lastReminderAt || ''),
         updatedAt: new Date().toISOString(),
       });
-      setMelding('Factuur per e-mail verzonden.');
+      setMelding(isReminder ? 'Betalingsherinnering verzonden.' : 'Factuur per e-mail verzonden.');
     } catch (e) {
       const pdfFile = new File([blob], fileName, { type: 'application/pdf' });
       const kanBestandDelen = Boolean(navigator.share && navigator.canShare?.({ files: [pdfFile] }));
@@ -6123,7 +6196,7 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <section style={{ ...factuurCard, background: COLORS.blue, color: COLORS.white }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 950 }}>Factuur per e-mail versturen</h2>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 950 }}>{isReminder ? 'Betalingsherinnering versturen' : 'Factuur per e-mail versturen'}</h2>
         <p style={{ margin: '8px 0 0', color: '#DCEBFF', lineHeight: 1.5 }}>
           {factuur.invoiceNumber} naar {factuur.customer?.companyName || factuur.customer?.contactName || 'klant'} - {formatEuro(totalen.totalIncVatCents)} incl. btw
         </p>
@@ -6151,7 +6224,14 @@ function OffertePdfPreview({ offerte, bedrijf, onOpslaan }) {
     const { dataUrl, blob } = await genereerOffertePdf(offerte, bedrijf);
     setDataUrl(dataUrl);
     const saved = { ...offerte, pdfGeneratedAt: new Date().toISOString() };
-    if (offerte.status !== 'Concept' && !offerte.finalizedPdfDataUrl) saved.finalizedPdfDataUrl = dataUrl;
+    if (offerte.status !== 'Concept' && !offerte.finalizedPdfDataUrl) {
+      saved.finalizedPdfDataUrl = dataUrl;
+      try {
+        saved.finalizedPdfUrl = await uploadDocumentBlob(`offertes/${offerte.quoteNumber}.pdf`, blob);
+      } catch (error) {
+        console.warn('Offerte-PDF blijft lokaal bewaard; online opslag is nog niet beschikbaar.', error);
+      }
+    }
     await onOpslaan(saved);
     if (download) downloadBlob(blob, `Offerte-${offerte.quoteNumber}.pdf`);
   };
@@ -6350,7 +6430,7 @@ function FactuurFotoSectie({ photos, onChange }) {
   );
 }
 
-function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onEmail, onOpslaan }) {
+function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onEmail, onReminder, onCredit, onOpslaan }) {
   const totalen = calculateInvoiceTotals(factuur.items || []);
   const mark = async (patch) => onOpslaan({ ...factuur, ...patch, updatedAt: new Date().toISOString() });
   return (
@@ -6364,6 +6444,8 @@ function FactuurBekijken({ factuur, bedrijf, onBewerk, onPreview, onEmail, onOps
         <button type="button" onClick={onBewerk} style={secondaryButton}><Edit2 size={17} /> Bewerken</button>
         <button type="button" onClick={onPreview} style={primaryButton}><Download size={17} /> PDF</button>
         <button type="button" onClick={onEmail} style={secondaryButton}><Send size={17} /> Mailen</button>
+        {factuur.paymentStatus !== 'Betaald' && <button type="button" onClick={onReminder} style={secondaryButton}><Clock size={17} /> Herinnering</button>}
+        {factuur.documentType !== 'credit' && <button type="button" onClick={onCredit} style={secondaryButton}><RefreshCw size={17} /> Creditfactuur</button>}
         <button type="button" onClick={() => mark({ status: 'Verzonden' })} style={secondaryButton}><Send size={17} /> Verzonden</button>
         <button type="button" onClick={() => mark({ status: 'Betaald', paymentStatus: 'Betaald', paidAt: new Date().toISOString() })} style={secondaryButton}><Check size={17} /> Betaald</button>
         <button type="button" onClick={() => mark({ paymentStatus: 'Open', paidAt: '' })} style={secondaryButton}><RefreshCw size={17} /> Betaling ongedaan</button>
@@ -6381,7 +6463,14 @@ function FactuurPdfPreview({ factuur, bedrijf, onOpslaan }) {
     const { dataUrl, blob } = await genereerFactuurPdf(factuur, bedrijf);
     setDataUrl(dataUrl);
     const saved = { ...factuur, pdfGeneratedAt: new Date().toISOString() };
-    if (factuur.status !== 'Concept' && !factuur.finalizedPdfDataUrl) saved.finalizedPdfDataUrl = dataUrl;
+    if (factuur.status !== 'Concept' && !factuur.finalizedPdfDataUrl) {
+      saved.finalizedPdfDataUrl = dataUrl;
+      try {
+        saved.finalizedPdfUrl = await uploadDocumentBlob(`facturen/${factuur.invoiceNumber}.pdf`, blob);
+      } catch (error) {
+        console.warn('Factuur-PDF blijft lokaal bewaard; online opslag is nog niet beschikbaar.', error);
+      }
+    }
     await onOpslaan(saved);
     if (download) downloadBlob(blob, `Factuur-${factuur.invoiceNumber}.pdf`);
     if (share && navigator.share && navigator.canShare) {

@@ -75,6 +75,8 @@ export function createEmptyQuote(existingQuotes = [], company = DEFAULT_COMPANY)
       expectedExecutionDate: '',
       expectedDuration: 'circa 2 werkdagen',
       description: 'Vervanging van het bestaande riooltracé, inclusief graafwerk, PVC-materialen, afvoer en herstel.',
+      includedWork: '',
+      excludedWork: '',
       notes: '',
       details: '',
       workAddressIsCustomerAddress: true,
