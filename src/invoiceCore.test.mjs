@@ -234,6 +234,8 @@ const quoteEmailApiSource = fs.readFileSync(new URL('../api/send-quote-email.js'
 const emailTemplateSource = fs.readFileSync(new URL('../api/_email-template.js', import.meta.url), 'utf8');
 assert.ok(invoiceEmailApiSource.includes("type: 'invoice'"), 'Factuurmail gebruikt het professionele HTML-ontwerp');
 assert.ok(quoteEmailApiSource.includes("type: 'quote'"), 'Offertemail gebruikt het professionele HTML-ontwerp');
+assert.ok(invoiceEmailApiSource.includes('professional-v1'), 'Factuurmailroute exposeert een controleerbare templateversie');
+assert.ok(quoteEmailApiSource.includes('professional-v1'), 'Offertemailroute exposeert een controleerbare templateversie');
 assert.ok(emailTemplateSource.includes('De PDF van deze'), 'Professionele e-mail vermeldt de PDF-bijlage');
 assert.ok(emailTemplateSource.includes('Overbetuwe Riool- en Afvoerservice B.V.'), 'Professionele e-mail bevat de bedrijfsafsluiting');
 assert.ok(quotePdfSource.includes('OFFERTE'), 'Offerte-PDF toont offertetitel');

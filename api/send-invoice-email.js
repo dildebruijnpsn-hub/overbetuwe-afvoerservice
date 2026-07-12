@@ -1,6 +1,7 @@
 import { renderDocumentEmail } from './_email-template.js';
 
 export default async function handler(req, res) {
+  res.setHeader('X-ORAS-Mail-Template', 'professional-v1');
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Alleen POST is toegestaan.' });
