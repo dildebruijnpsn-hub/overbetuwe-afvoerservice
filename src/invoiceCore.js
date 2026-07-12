@@ -220,7 +220,7 @@ export function validateInvoice(invoice, company) {
   const customerPhone = String(invoice.customer?.phone || '').trim();
   const customerPhoneDigits = customerPhone.replace(/\D/g, '');
   if (!company.legalName) errors.push('Vul eerst de juridische bedrijfsnaam in voordat u deze factuur definitief maakt.');
-  if (!company.address || !company.postalCode || !company.city) errors.push('Vul eerst het vestigingsadres van uw bedrijf in voordat u deze factuur definitief maakt.');
+  if (!company.address || !company.postalCode || !company.city) errors.push('Vul eerst het volledige bedrijfsadres in bij Bedrijfsinstellingen.');
   if (!company.kvkNumber) errors.push('Vul eerst het KvK-nummer van uw bedrijf in.');
   if (!company.vatNumber) errors.push('Vul eerst het btw-identificatienummer van uw bedrijf in.');
   if (!company.iban) errors.push('Vul eerst het IBAN in.');
