@@ -5,6 +5,7 @@ import {
   INVOICE_STATUSES,
   PAYMENT_STATUSES,
   INVOICE_UNITS,
+  ONTSTOPPING_EX_VAT_CENTS,
   VAT_RATES,
   PHOTO_CATEGORIES,
   STANDARD_INVOICE_ITEMS,
@@ -5329,6 +5330,24 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
     }
     update('items', items);
   };
+  const pasOntstoppingToe = () => {
+    update('project.description', 'Ontstoppingswerkzaamheden uitgevoerd, leiding gereinigd en afvoer gecontroleerd.');
+    const items = [...(data.items || [])];
+    const index = items.findIndex(item => String(item.description || '').toLowerCase().includes('ontstopping'));
+    const regel = normalizeInvoiceItem({
+      description: 'Ontstoppingswerkzaamheden',
+      quantity: '1',
+      unit: 'post',
+      vatRate: '21',
+      unitPriceExVatCents: ONTSTOPPING_EX_VAT_CENTS,
+    }, items.length);
+    if (index >= 0) {
+      items[index] = { ...items[index], description: 'Ontstoppingswerkzaamheden', quantity: '1', unit: 'post', vatRate: '21', unitPriceExVatCents: ONTSTOPPING_EX_VAT_CENTS };
+    } else {
+      items.push(regel);
+    }
+    update('items', items);
+  };
   const kiesKlant = (id) => {
     const klant = klantOpties.find(k => k.id === id);
     if (!klant) return;
@@ -5427,7 +5446,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
           <FTextarea label="Omschrijving opdracht" value={data.project?.description} onChange={v => update('project.description', v)} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 }}>
           <button type="button" onClick={() => update('project.description', 'Vervanging van het bestaande riooltracé, inclusief graafwerk, PVC-materialen, afvoer en herstel.')} style={secondaryButton}>Rioolvervanging</button>
-            <button type="button" onClick={() => update('project.description', 'Ontstoppingswerkzaamheden uitgevoerd, leiding gereinigd en afvoer gecontroleerd.')} style={secondaryButton}>Ontstopping</button>
+            <button type="button" onClick={pasOntstoppingToe} style={secondaryButton}>Ontstopping</button>
             <button type="button" onClick={() => update('project.description', 'Camera-inspectie uitgevoerd en bevindingen met klant besproken.')} style={secondaryButton}>Camera</button>
           </div>
           <button type="button" onClick={() => setToonFotos(v => !v)} style={{ ...secondaryButton, width: '100%', marginTop: 12, justifyContent: 'space-between' }}>
@@ -5502,8 +5521,8 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
         <button type="button" disabled={stap === 3} onClick={() => setStap(Math.min(3, stap + 1))} style={{ ...secondaryButton, opacity: stap === 3 ? 0.45 : 1 }}>Volgende</button>
       </div>
 
-      <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 160, padding: '10px 12px max(12px, env(safe-area-inset-bottom))', background: 'rgba(255,255,255,0.97)', borderTop: `1px solid ${COLORS.border}`, boxShadow: '0 -12px 28px rgba(15,45,92,0.12)' }}>
-        <div style={{ maxWidth: 980, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+      <div style={{ position: 'fixed', left: 12, right: 12, bottom: 'max(12px, env(safe-area-inset-bottom))', zIndex: 160, boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: 980, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 8, background: 'rgba(255,255,255,0.98)', border: `1px solid ${COLORS.border}`, borderRadius: 22, boxShadow: '0 18px 44px rgba(15,45,92,0.18)', backdropFilter: 'blur(18px)' }}>
           <button type="button" disabled={bezig} onClick={() => save()} style={secondaryButton}><Save size={16} /> Opslaan</button>
           <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={16} /> PDF bekijken</button>
           <button type="button" disabled={!kanDefinitief || bezig} onClick={maakDefinitief} style={{ ...primaryButton, opacity: !kanDefinitief || bezig ? 0.48 : 1 }}><CheckCircle size={16} /> Definitief maken</button>
