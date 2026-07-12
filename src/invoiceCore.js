@@ -10,6 +10,7 @@ export const PAYMENT_STATUSES = ['Open', 'Betaald', 'Te laat', 'Geannuleerd'];
 export const INVOICE_UNITS = ['uur', 'dag', 'stuk', 'meter', 'post', 'rit', 'container', 'm3', 'anders'];
 export const VAT_RATES = ['21', '9', '0', 'verlegd'];
 export const PHOTO_CATEGORIES = ['Beginsituatie', 'Oorzaak', 'Tijdens werkzaamheden', 'Reparatie', 'Nieuwe situatie', 'Eindresultaat', 'Overig'];
+export const ONTSTOPPING_EX_VAT_CENTS = 12314;
 
 export const DEFAULT_COMPANY = {
   legalName: 'Overbetuwe Riool- en Afvoerservice B.V.',
@@ -42,7 +43,7 @@ export const STANDARD_INVOICE_ITEMS = [
   { description: 'Schoon zand', quantity: '1', unit: 'm3', unitPriceExVatCents: 0, vatRate: '21' },
   { description: 'Afvoerkosten', quantity: '1', unit: 'post', unitPriceExVatCents: 0, vatRate: '21' },
   { description: 'Camera-inspectie', quantity: '1', unit: 'post', unitPriceExVatCents: 0, vatRate: '21' },
-  { description: 'Ontstoppingswerkzaamheden', quantity: '1', unit: 'uur', unitPriceExVatCents: 6500, vatRate: '21' },
+  { description: 'Ontstoppingswerkzaamheden', quantity: '1', unit: 'post', unitPriceExVatCents: ONTSTOPPING_EX_VAT_CENTS, vatRate: '21' },
   { description: 'Reinigingswerkzaamheden', quantity: '1', unit: 'uur', unitPriceExVatCents: 6500, vatRate: '21' },
   { description: 'Voorrijkosten', quantity: '1', unit: 'rit', unitPriceExVatCents: 0, vatRate: '21' },
   { description: 'Overige materialen', quantity: '1', unit: 'post', unitPriceExVatCents: 0, vatRate: '21' },
