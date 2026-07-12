@@ -1,5 +1,5 @@
-const CACHE_NAME = 'overbetuwe-afvoerservice-v20260712-5';
-const STATIC_ASSETS = ['/manifest.webmanifest', '/pwa-icon.svg', '/overbetuwe-logo.jpg', '/google-review-qr.png'];
+const CACHE_NAME = 'overbetuwe-afvoerservice-v20260712-6';
+const STATIC_ASSETS = ['/manifest.webmanifest', '/pwa-icon.svg', '/overbetuwe-logo.jpg', '/overbetuwe-logo-pdf.png', '/google-review-qr.png'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
