@@ -66,6 +66,21 @@ assert.ok(missingCompany.some(e => e.includes('vestigingsadres')), 'Verplichte b
 const companyComplete = { ...DEFAULT_COMPANY, address: 'Dorpsstraat 1', postalCode: '6661 AA', city: 'Elst' };
 assert.deepEqual(validateInvoice(invoice, companyComplete), [], 'Volledige voorbeeldfactuur moet valide zijn');
 
+const invalidEmailInvoice = JSON.parse(JSON.stringify(invoice));
+invalidEmailInvoice.customer.email = 'geen-geldig-emailadres';
+assert.ok(validateInvoice(invalidEmailInvoice, companyComplete).some(e => e.includes('geldig e-mailadres')), 'Ongeldig e-mailadres moet definitief maken blokkeren');
+
+const invalidPhoneInvoice = JSON.parse(JSON.stringify(invoice));
+invalidPhoneInvoice.customer.phone = '123';
+assert.ok(validateInvoice(invalidPhoneInvoice, companyComplete).some(e => e.includes('geldig telefoonnummer')), 'Ongeldig telefoonnummer moet definitief maken blokkeren');
+
+const missingKvkCompany = { ...companyComplete, kvkNumber: '' };
+assert.ok(validateInvoice(invoice, missingKvkCompany).some(e => e.includes('KvK-nummer')), 'KvK-nummer is verplicht voor definitieve facturen');
+
+const invalidTariffInvoice = JSON.parse(JSON.stringify(invoice));
+invalidTariffInvoice.items[0].unitPriceExVatCents = 0;
+assert.ok(validateInvoice(invalidTariffInvoice, companyComplete).some(e => e.includes('geldig tarief')), 'Nultarief mag niet definitief worden gemaakt');
+
 const reopened = JSON.parse(JSON.stringify(invoice));
 assert.equal(reopened.invoiceNumber, invoice.invoiceNumber, 'Factuur kan worden opgeslagen en opnieuw geopend');
 
@@ -91,5 +106,13 @@ assert.ok(!appSource.includes(brokenEuro), 'PDF-generator mag geen kapot eurotek
 assert.ok(appSource.includes('formatCurrencyNL(cents)'), 'PDF-generator gebruikt centrale geldnotatie');
 assert.ok(!appSource.includes("contactLine('T'"), 'PDF-generator mag geen lettericonen voor contactgegevens gebruiken');
 assert.ok(appSource.includes('PROJECTGEGEVENS'), 'PDF-generator toont PROJECTGEGEVENS');
+assert.ok(appSource.includes("type === 'person'"), 'PDF-generator tekent een persoonicoon voor FACTUUR AAN');
+assert.ok(appSource.includes("type === 'pin'"), 'PDF-generator tekent een locatiepin voor PROJECTGEGEVENS');
+assert.ok(appSource.includes("type === 'bank'"), 'PDF-generator tekent een bankicoon voor BETALINGSINSTRUCTIE');
+assert.ok(appSource.includes("sectionIcon(margin + 5, termsY - 1.2, 'doc', true)"), 'PDF-generator tekent een documenticoon voor voorwaarden');
+assert.ok(appSource.includes('const tableBottomY = y - 5'), 'PDF-generator gebruikt de werkelijke tabelhoogte');
+assert.ok(appSource.includes('Math.min(tableBottomY + 8, maxLowerY)'), 'Onderste PDF-blokken starten direct onder de tabel met footerbescherming');
+assert.ok(appSource.includes('doc.getNumberOfPages()'), 'PDF-generator berekent footer-paginering na het maken van alle paginas');
+assert.ok(!appSource.includes("['Referentie:', factuur.project?.reference], ['Bijlage:', `${(factuur.photos || []).length}"), 'Lege referentie en nul fotos mogen niet geforceerd worden getoond');
 
 console.log('invoiceCore tests OK');
