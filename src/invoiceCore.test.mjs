@@ -16,6 +16,15 @@ import {
   parseEuroToCents,
   validateInvoice,
 } from './invoiceCore.js';
+import {
+  createEmptyQuote,
+  nextLocalQuoteNumber,
+  quoteEmailBody,
+  quoteEmailSubject,
+  quoteToInvoiceDraft,
+  quoteTotals,
+  validateQuote,
+} from './quoteCore.js';
 
 const arbeid = calculateLine({ description: 'Arbeid monteurs', quantity: '32', unit: 'uur', unitPriceExVatCents: 6500, vatRate: '21' });
 assert.equal(arbeid.lineSubtotalCents, 208000, '32 uur x 65 euro moet 2.080,00 exclusief btw zijn');
@@ -77,6 +86,10 @@ assert.equal(rounded.lineVatCents, 1890);
 
 const n1 = nextLocalInvoiceNumber([{ invoiceNumber: 'F2026-0001' }, { invoiceNumber: 'F2026-0004', status: 'Geannuleerd' }], 2026);
 assert.equal(n1.invoiceNumber, 'F2026-0005', 'Geannuleerde definitieve nummers mogen niet opnieuw worden gebruikt');
+
+const q1 = nextLocalQuoteNumber([{ quoteNumber: 'O2026-0001' }, { quoteNumber: 'O2026-0004', status: 'Geannuleerd' }], 2026);
+assert.equal(q1.quoteNumber, 'O2026-0005', 'O-nummering moet uniek blijven en geannuleerde nummers niet hergebruiken');
+assert.ok(!q1.quoteNumber.startsWith('F'), 'Offertes moeten een eigen O-prefix gebruiken');
 
 const invoice = createEmptyInvoice([], DEFAULT_COMPANY);
 invoice.customer.companyName = 'Veilinghuis Timothy';
@@ -157,5 +170,46 @@ assert.ok(appSource.includes('const reviewBoxH = 27'), 'Reviewkaart heeft ruimte
 assert.ok(appSource.includes('25, 25'), 'QR-code wordt minimaal 25 bij 25 mm in de PDF geplaatst');
 assert.ok(appSource.includes('doc.getNumberOfPages()'), 'PDF-generator berekent footer-paginering na het maken van alle paginas');
 assert.ok(!appSource.includes("['Referentie:', factuur.project?.reference], ['Bijlage:', `${(factuur.photos || []).length}"), 'Lege referentie en nul fotos mogen niet geforceerd worden getoond');
+
+const quote = createEmptyQuote([], companyComplete);
+quote.customer.companyName = 'Veilinghuis Timothy';
+quote.customer.address = 'Dorpsstraat 61';
+quote.customer.postalCode = '6677 PJ';
+quote.customer.city = 'Slijk-Ewijk';
+quote.customer.phone = '0481-482396';
+quote.customer.email = 'info@veilinghuistimothy.nl';
+quote.project.workAddress = 'Dorpsstraat';
+quote.project.workHouseNumber = '61';
+quote.project.workPostalCode = '6677 PJ';
+quote.project.workCity = 'Slijk-Ewijk';
+quote.project.expectedExecutionDate = '2026-07-11';
+quote.project.expectedDuration = 'circa 2 werkdagen';
+quote.project.description = 'Vervanging van het bestaande riooltracé, inclusief graafwerk, PVC-materialen, afvoer en herstel.';
+quote.items = [
+  { description: 'Arbeid monteurs', quantity: '32', unit: 'uur', unitPriceExVatCents: 6500, vatRate: '21' },
+  { description: 'PVC-materialen', quantity: '1', unit: 'post', unitPriceExVatCents: 6000, vatRate: '21' },
+];
+const quoteTotalen = quoteTotals(quote.items);
+assert.equal(quoteTotalen.lines[0].quantityNumber, 32, 'Offerte-arbeidsregel moet aantal 32 opslaan');
+assert.equal(quoteTotalen.lines[0].lineSubtotalCents, 208000, 'Offerte-arbeid 32 x 65 moet 2.080,00 excl. btw zijn');
+assert.deepEqual(validateQuote(quote, companyComplete), [], 'Volledige voorbeeldofferte moet valide zijn');
+const invalidQuote = JSON.parse(JSON.stringify(quote));
+invalidQuote.customer.email = 'ongeldig';
+assert.ok(validateQuote(invalidQuote, companyComplete).some(e => e.includes('geldig e-mailadres')), 'Offertevalidatie blokkeert ongeldig e-mailadres');
+assert.ok(quoteEmailSubject(quote, companyComplete).includes(quote.quoteNumber), 'Offerte e-mailonderwerp bevat offertenummer');
+assert.ok(quoteEmailBody(quote, companyComplete).includes('Akkoord'), 'Offerte e-mail vraagt om antwoord Akkoord');
+const draftInvoice = quoteToInvoiceDraft(quote, nextLocalInvoiceNumber([], 2026));
+assert.ok(draftInvoice.invoiceNumber.startsWith('F2026-'), 'Omzetten naar factuur moet een F-nummer gebruiken');
+assert.equal(draftInvoice.linkedQuoteNumber, quote.quoteNumber, 'Factuur bewaart gekoppeld offertenummer');
+assert.equal(draftInvoice.items[0].quantity, '32', 'Omgezette factuur behoudt 32 arbeidsuren');
+
+const quotePdfSource = fs.readFileSync(new URL('./quotePdf.js', import.meta.url), 'utf8');
+assert.ok(quotePdfSource.includes('OFFERTE'), 'Offerte-PDF toont offertetitel');
+assert.ok(quotePdfSource.includes('GELDIGHEID EN AKKOORD VIA E-MAIL'), 'Offerte-PDF toont geldigheid en akkoordtekst');
+assert.ok(quotePdfSource.includes('AKKOORD GEVEN VIA E-MAIL'), 'Offerte-PDF toont akkoordblok');
+assert.ok(!quotePdfSource.includes('Google review'), 'Offerte-PDF mag geen Google-reviewblok bevatten');
+assert.ok(!quotePdfSource.includes(brokenEuro), 'Offerte-PDF mag geen kapot euroteken bevatten');
+assert.ok(quotePdfSource.includes('doc.getNumberOfPages()'), 'Offerte-PDF heeft dynamische paginering');
+assert.ok(quotePdfSource.includes('drawTableHeader'), 'Offerte-PDF herhaalt tabelkop op vervolgpaginas');
 
 console.log('invoiceCore tests OK');
