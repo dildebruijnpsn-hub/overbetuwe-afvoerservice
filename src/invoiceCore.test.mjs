@@ -6,7 +6,9 @@ import {
   createEmptyInvoice,
   createExampleItems,
   DEFAULT_COMPANY,
+  formatAddressParts,
   formatEuro,
+  formatPostalCity,
   immutableSnapshot,
   nextLocalInvoiceNumber,
   validateInvoice,
@@ -16,6 +18,17 @@ const arbeid = calculateLine({ description: 'Arbeid monteurs', quantity: '32', u
 assert.equal(arbeid.lineSubtotalCents, 208000, '32 uur x 65 euro moet 2.080,00 exclusief btw zijn');
 assert.equal(arbeid.lineVatCents, 43680, '32 uur x 65 euro moet 436,80 btw zijn');
 assert.equal(arbeid.lineTotalCents, 251680, '32 uur x 65 euro moet 2.516,80 inclusief btw zijn');
+assert.equal(arbeid.quantityNumber, 32, 'PDF-regel voor arbeid moet aantal 32 tonen, niet 1');
+
+const calculatorHours = 2 * 2 * 8;
+const calculatorLine = calculateLine({ description: 'Arbeid monteurs', quantity: String(calculatorHours), unit: 'uur', unitPriceExVatCents: 6500, vatRate: '21' });
+assert.equal(calculatorLine.quantityNumber, 32, '2 monteurs x 2 werkdagen x 8 uur moet 32 uur zijn');
+assert.equal(calculatorLine.lineSubtotalCents, 208000, 'Arbeidscalculator moet 2.080,00 excl. btw opslaan');
+assert.equal(calculatorLine.lineVatCents, 43680, 'Arbeidscalculator moet 436,80 btw opslaan');
+assert.equal(calculatorLine.lineTotalCents, 251680, 'Arbeidscalculator moet 2.516,80 incl. btw opslaan');
+
+assert.equal(formatPostalCity(' 6811 AA ', ' Arnhem '), '6811 AA Arnhem', 'Postcode en plaats worden netjes samengevoegd');
+assert.equal(formatAddressParts('Jansplein', '', 'Arnhem'), 'Jansplein, Arnhem', 'Adresformatter laat lege delen en dubbele kommas weg');
 
 const btw = calculateLine({ description: 'Test', quantity: '1', unit: 'post', unitPriceExVatCents: 10000, vatRate: '21' });
 assert.equal(btw.lineVatCents, 2100, '21 procent btw over 100,00 moet 21,00 zijn');
@@ -68,6 +81,9 @@ assert.ok(missingCompany.some(e => e.includes('volledige bedrijfsadres')), 'Verp
 const companyComplete = { ...DEFAULT_COMPANY, address: 'Dorpsstraat 1', postalCode: '6661 AA', city: 'Elst' };
 assert.deepEqual(validateInvoice(invoice, companyComplete), [], 'Volledige voorbeeldfactuur moet valide zijn');
 
+const missingHouseNumberCompany = { ...companyComplete, address: 'Dorpsstraat' };
+assert.ok(validateInvoice(invoice, missingHouseNumberCompany).some(e => e.includes('volledige bedrijfsadres')), 'Bedrijfsadres zonder huisnummer moet definitief maken blokkeren');
+
 const invalidEmailInvoice = JSON.parse(JSON.stringify(invoice));
 invalidEmailInvoice.customer.email = 'geen-geldig-emailadres';
 assert.ok(validateInvoice(invalidEmailInvoice, companyComplete).some(e => e.includes('geldig e-mailadres')), 'Ongeldig e-mailadres moet definitief maken blokkeren');
@@ -110,7 +126,10 @@ assert.ok(!appSource.includes("contactLine('T'"), 'PDF-generator mag geen letter
 assert.ok(appSource.includes('PROJECTGEGEVENS'), 'PDF-generator toont PROJECTGEGEVENS');
 assert.ok(appSource.includes('companyStreetLine'), 'PDF-generator laadt straat en huisnummer uit bedrijfsinstellingen');
 assert.ok(appSource.includes('companyPostalLine'), 'PDF-generator laadt postcode en plaats uit bedrijfsinstellingen');
+assert.ok(appSource.includes("description: 'Arbeid monteurs'"), 'Arbeidscalculator schrijft een vaste arbeidsomschrijving weg');
 assert.ok(appSource.includes('quantity: String(totaalUren || 0)'), 'Arbeidscalculator moet totaaluren als aantal naar de factuurregel schrijven');
+assert.ok(!appSource.includes("quantity: '1', unit: 'uur', unitPriceExVatCents: parseEuroToCents(tarief"), 'Arbeidscalculator mag geen factuurregel met aantal 1 wegschrijven');
+assert.ok(!appSource.includes('riooltrace'), 'Vaste app-teksten moeten riooltracé met accent gebruiken');
 assert.ok(appSource.includes("type === 'person'"), 'PDF-generator tekent een persoonicoon voor FACTUUR AAN');
 assert.ok(appSource.includes("type === 'pin'"), 'PDF-generator tekent een locatiepin voor PROJECTGEGEVENS');
 assert.ok(appSource.includes("type === 'bank'"), 'PDF-generator tekent een bankicoon voor BETALINGSINSTRUCTIE');
