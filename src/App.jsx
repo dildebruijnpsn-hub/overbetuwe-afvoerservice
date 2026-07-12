@@ -6053,17 +6053,8 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
       return;
     }
     setBezig(true);
-    const { dataUrl } = await genereerFactuurPdf(factuur, bedrijf);
-    const saved = {
-      ...factuur,
-      status: factuur.status === 'Concept' ? 'Verzonden' : factuur.status,
-      sentAt: new Date().toISOString(),
-      sentToEmail: to,
-      sentEmailSubject: subject,
-      sentEmailBody: body,
-      sentPdfDataUrl: dataUrl,
-      updatedAt: new Date().toISOString(),
-    };
+    const { dataUrl, blob } = await genereerFactuurPdf(factuur, bedrijf);
+    const fileName = `Factuur-${factuur.invoiceNumber}.pdf`;
     try {
       const response = await fetch('/api/send-invoice-email', {
         method: 'POST',
@@ -6074,20 +6065,53 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
           text: body,
           invoiceNumber: factuur.invoiceNumber,
           pdfDataUrl: dataUrl,
-          fileName: `Factuur-${factuur.invoiceNumber}.pdf`,
+          fileName,
         }),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
         throw new Error(result.error || 'Server-side e-mail is nog niet geconfigureerd.');
       }
+      await onOpslaan({
+        ...factuur,
+        status: factuur.status === 'Concept' ? 'Verzonden' : factuur.status,
+        sentAt: new Date().toISOString(),
+        sentToEmail: to,
+        sentEmailSubject: subject,
+        sentEmailBody: body,
+        sentPdfDataUrl: dataUrl,
+        updatedAt: new Date().toISOString(),
+      });
       setMelding('Factuur per e-mail verzonden.');
     } catch (e) {
-      const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.open(mailto, '_blank');
-      setMelding('Mail-app geopend. Voeg de PDF toe vanuit PDF bekijken als bijlage.');
+      const pdfFile = new File([blob], fileName, { type: 'application/pdf' });
+      const kanBestandDelen = Boolean(navigator.share && navigator.canShare?.({ files: [pdfFile] }));
+      if (kanBestandDelen) {
+        try {
+          await navigator.share({
+            title: subject,
+            text: `${body}\n\nOntvanger: ${to}`,
+            files: [pdfFile],
+          });
+          await onOpslaan({
+            ...factuur,
+            emailPreparedAt: new Date().toISOString(),
+            sentToEmail: to,
+            sentEmailSubject: subject,
+            sentEmailBody: body,
+            updatedAt: new Date().toISOString(),
+          });
+          setMelding('Mail-app geopend met de factuur-PDF als bijlage.');
+        } catch (shareError) {
+          if (shareError?.name !== 'AbortError') setMelding('De PDF kon niet met de mail-app worden gedeeld. Probeer PDF downloaden.');
+        }
+      } else {
+        downloadBlob(blob, fileName);
+        const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.location.href = mailto;
+        setMelding('De PDF is gedownload. Dit toestel kan hem niet automatisch aan de mail toevoegen.');
+      }
     } finally {
-      await onOpslaan(saved);
       setBezig(false);
     }
   };
