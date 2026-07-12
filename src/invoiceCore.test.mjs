@@ -13,6 +13,7 @@ import {
   formatPostalCity,
   immutableSnapshot,
   nextLocalInvoiceNumber,
+  parseEuroToCents,
   validateInvoice,
 } from './invoiceCore.js';
 
@@ -33,6 +34,10 @@ const ontstopping = calculateLine(STANDARD_INVOICE_ITEMS.find(item => item.descr
 assert.equal(ONTSTOPPING_EX_VAT_CENTS, 12314, 'Ontstopping gebruikt 123,14 excl. btw als basis voor 149,00 incl. btw');
 assert.equal(ontstopping.lineTotalCents, 14900, 'Ontstopping moet standaard 149,00 inclusief btw zijn');
 assert.equal(ontstopping.unit, 'post', 'Ontstopping is een vaste post, geen uurregel');
+assert.equal(parseEuroToCents('1.234,56'), 123456, 'Nederlandse materiaalbedragen met punt en komma moeten goed worden gelezen');
+assert.equal(parseEuroToCents('1234,56'), 123456, 'Nederlandse materiaalbedragen met komma moeten goed worden gelezen');
+assert.equal(parseEuroToCents('60,50'), 6050, 'Materiaalbedrag met komma-decimalen moet goed worden gelezen');
+assert.equal(parseEuroToCents('60'), 6000, 'Heel materiaalbedrag moet als eurobedrag worden gelezen');
 
 assert.equal(formatPostalCity(' 6811 AA ', ' Arnhem '), '6811 AA Arnhem', 'Postcode en plaats worden netjes samengevoegd');
 assert.equal(formatAddressParts('Jansplein', '', 'Arnhem'), 'Jansplein, Arnhem', 'Adresformatter laat lege delen en dubbele kommas weg');
