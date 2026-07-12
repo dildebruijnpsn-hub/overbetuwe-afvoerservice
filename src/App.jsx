@@ -6052,6 +6052,10 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
       setMelding('Voer eerst een geldig e-mailadres in.');
       return;
     }
+    if (totalen.totalIncVatCents <= 0) {
+      setMelding('Voeg eerst een factuurregel met een geldig bedrag toe.');
+      return;
+    }
     setBezig(true);
     const { dataUrl, blob } = await genereerFactuurPdf(factuur, bedrijf);
     const fileName = `Factuur ${factuur.invoiceNumber} - Overbetuwe.pdf`;

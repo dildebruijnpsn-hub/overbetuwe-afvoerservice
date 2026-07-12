@@ -185,11 +185,11 @@ assert.ok(invoiceMail.includes(formatEuro(voorbeeld.totalIncVatCents)), 'Factuur
 assert.ok(invoiceMail.includes(companyComplete.iban), 'Factuur e-mail bevat het IBAN');
 assert.ok(invoiceMail.includes(invoice.invoiceNumber), 'Factuur e-mail bevat het factuurnummer');
 assert.ok(invoiceMail.includes('uitgevoerde werkzaamheden'), 'Factuur e-mail bevat automatische factuurtekst');
-assert.ok(invoiceMail.includes('Factuurbedrag:'), 'Factuur e-mail toont een duidelijk factuurbedrag');
-assert.ok(invoiceMail.includes('Vervaldatum:'), 'Factuur e-mail toont de vervaldatum op een eigen regel');
-assert.ok(invoiceMail.includes('Betalingskenmerk:'), 'Factuur e-mail toont een duidelijk betalingskenmerk');
-assert.ok(invoiceMail.includes('Telefoon:'), 'Factuur e-mail gebruikt een verzorgde contactondertekening');
-assert.ok(!invoiceMail.includes('Totaalbedrag:\n'), 'Factuurbedrag en waarde mogen niet los van elkaar staan');
+assert.ok(invoiceMail.includes('Het factuurbedrag is'), 'Factuur e-mail gebruikt een zakelijke betalingszin');
+assert.ok(invoiceMail.includes('Wij verzoeken u dit bedrag uiterlijk'), 'Factuur e-mail bevat een duidelijke betaalinstructie');
+assert.ok(invoiceMail.includes('U kunt ons bereiken via'), 'Factuur e-mail bevat compacte contactinformatie');
+assert.ok(!invoiceMail.includes('Factuurbedrag:'), 'Factuur e-mail gebruikt geen losse labels die mobiel rommelig samenklappen');
+assert.ok(appSource.includes('totalen.totalIncVatCents <= 0'), 'Factuur van nul euro mag niet worden doorgestuurd');
 assert.ok(appSource.includes("body.replace(/\\r?\\n/g, '\\r\\n')"), 'Mobiele mailoverdracht moet alinea-opmaak behouden');
 assert.ok(!appSource.slice(appSource.indexOf('function FactuurEmailPreview')).includes('Ontvanger: ${to}'), 'Ontvanger mag niet onderaan de factuurmail worden toegevoegd');
 

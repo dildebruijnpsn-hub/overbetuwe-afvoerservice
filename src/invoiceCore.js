@@ -284,20 +284,13 @@ export function invoiceEmailBody(invoice, company = DEFAULT_COMPANY) {
   const dueDate = formatLongDateNl(invoice.dueDate);
   return `Geachte heer/mevrouw,
 
-In de bijlage ontvangt u factuur ${invoice.invoiceNumber} voor de uitgevoerde werkzaamheden.
+Hierbij ontvangt u factuur ${invoice.invoiceNumber} van ${company.legalName} voor de uitgevoerde werkzaamheden.
 
-Factuurbedrag: ${formatEuro(totals.totalIncVatCents)} inclusief btw
-Vervaldatum: ${dueDate}
-Betalingskenmerk: ${invoice.invoiceNumber}
+Het factuurbedrag is ${formatEuro(totals.totalIncVatCents)} inclusief btw. Wij verzoeken u dit bedrag uiterlijk op ${dueDate} over te maken naar IBAN ${company.iban}, onder vermelding van ${invoice.invoiceNumber}.
 
-Wij verzoeken u het factuurbedrag over te maken naar IBAN ${company.iban}, onder vermelding van het betalingskenmerk.
-
-Heeft u vragen over deze factuur? Neem gerust contact met ons op.
+Heeft u vragen over deze factuur? U kunt ons bereiken via ${company.phone} of ${company.email}.
 
 Met vriendelijke groet,
 
-${company.legalName}
-Telefoon: ${company.phone}
-E-mail: ${company.email}
-Website: ${company.website}`;
+${company.legalName}`;
 }
