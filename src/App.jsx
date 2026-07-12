@@ -5689,7 +5689,11 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
             <FInput label="Factuurnummer" value={data.invoiceNumber} onChange={v => update('invoiceNumber', v)} disabled={definitief} />
             <FInput label="Factuurdatum" type="date" value={data.invoiceDate} onChange={v => { update('invoiceDate', v); update('dueDate', addDaysIso(v, data.paymentTermDays || bedrijf.defaultPaymentTerm)); }} />
             <FInput label="Vervaldatum" type="date" value={data.dueDate} onChange={v => update('dueDate', v)} />
-            <FInput label="Betaaltermijn in dagen" type="number" value={data.paymentTermDays} onChange={v => { update('paymentTermDays', Number(v)); update('dueDate', addDaysIso(data.invoiceDate, Number(v))); }} />
+            <FInput label="Betaaltermijn in dagen" inputMode="numeric" value={data.paymentTermDays} onChange={v => {
+              const dagen = v.replace(/\D/g, '');
+              update('paymentTermDays', dagen);
+              if (Number(dagen) > 0) update('dueDate', addDaysIso(data.invoiceDate, Number(dagen)));
+            }} />
             <FSelect label="Status" value={data.status} onChange={v => update('status', v)} options={INVOICE_STATUSES} />
             <FSelect label="Betaalstatus" value={data.paymentStatus} onChange={v => update('paymentStatus', v)} options={PAYMENT_STATUSES} />
           </div>
@@ -5776,8 +5780,9 @@ function OfferteFormulier({ offerte, offertes, klanten, bedrijf, onOpslaan, onOp
     setKlantWijzigen(false);
   };
   const addStandard = (omschrijving) => {
-    const item = STANDARD_INVOICE_ITEMS.find(x => x.description === omschrijving);
-    if (item) addItem(item);
+    if (omschrijving === 'Verwachte materiaalkosten') {
+      addItem({ description: 'Verwachte materiaalkosten', quantity: '1', unit: 'post', unitPriceExVatCents: 0, vatRate: bedrijf.defaultVatRate || '21' });
+    }
     setRegelToevoegen('');
   };
   const voegArbeidToe = ({ totaalUren, tarief }) => {
@@ -5890,8 +5895,8 @@ function OfferteFormulier({ offerte, offertes, klanten, bedrijf, onOpslaan, onOp
               {regelToevoegen === 'arbeid' && <Arbeidsregel onToevoegen={voegArbeidToe} />}
               {regelToevoegen === 'standaard' && (
                 <select style={{ ...factuurInput, marginTop: 10 }} onChange={e => addStandard(e.target.value)} defaultValue="">
-                  <option value="">Kies standaardtarief...</option>
-                  {STANDARD_INVOICE_ITEMS.map(i => <option key={i.description} value={i.description}>{i.description}</option>)}
+                  <option value="">Kies standaardregel...</option>
+                  <option value="Verwachte materiaalkosten">Verwachte materiaalkosten</option>
                 </select>
               )}
             </div>
@@ -6109,7 +6114,7 @@ function FactuurregelKaart({ item, bewerken, onBewerk, onChange, onDupliceer, on
         <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
           <FInput label="Omschrijving" value={item.description} onChange={v => onChange({ description: v })} />
           <div style={responsiveGrid2}>
-            <FInput label="Aantal" type="number" value={item.quantity} onChange={v => onChange({ quantity: v })} />
+            <FInput label="Aantal" inputMode="decimal" value={item.quantity} onChange={v => onChange({ quantity: v.replace(/[^\d,.]/g, '') })} />
             <FSelect label="Eenheid" value={item.unit} onChange={v => onChange({ unit: v })} options={INVOICE_UNITS} />
             <FInput
               label="Tarief excl. btw"
@@ -6122,7 +6127,7 @@ function FactuurregelKaart({ item, bewerken, onBewerk, onChange, onDupliceer, on
               onBlur={() => setTariefTekst(formatEuro(parseEuroToCents(tariefTekst), false))}
             />
             <FSelect label="Btw" value={item.vatRate} onChange={v => onChange({ vatRate: v })} options={VAT_RATES} />
-            <FInput label="Korting %" type="number" value={item.discountPercentage || 0} onChange={v => onChange({ discountPercentage: Number(v) })} />
+            <FInput label="Korting %" inputMode="decimal" value={item.discountPercentage || 0} onChange={v => onChange({ discountPercentage: v.replace(/[^\d,.]/g, '') })} />
           </div>
         </div>
       )}
@@ -6288,6 +6293,7 @@ function FactuurPdfPreview({ factuur, bedrijf, onOpslaan }) {
 
 function BedrijfsInstellingen({ bedrijf, onOpslaan }) {
   const [data, setData] = useState({ ...DEFAULT_COMPANY, ...bedrijf });
+  const [uurtariefTekst, setUurtariefTekst] = useState(formatEuro((bedrijf.defaultHourlyRateCents ?? DEFAULT_COMPANY.defaultHourlyRateCents), false));
   const [melding, setMelding] = useState('');
   const update = (key, value) => setData(d => ({ ...d, [key]: value }));
   const uploadAsset = (key, file) => {
@@ -6313,9 +6319,9 @@ function BedrijfsInstellingen({ bedrijf, onOpslaan }) {
         <FInput label="Btw-identificatienummer" value={data.vatNumber} onChange={v => update('vatNumber', v)} />
         <FInput label="IBAN" value={data.iban} onChange={v => update('iban', v)} />
         <FInput label="BIC" value={data.bic} onChange={v => update('bic', v)} />
-        <FInput label="Standaard betaaltermijn" type="number" value={data.defaultPaymentTerm} onChange={v => update('defaultPaymentTerm', Number(v))} />
+        <FInput label="Standaard betaaltermijn" inputMode="numeric" value={data.defaultPaymentTerm} onChange={v => update('defaultPaymentTerm', v.replace(/\D/g, ''))} />
         <FSelect label="Standaard btw" value={data.defaultVatRate} onChange={v => update('defaultVatRate', v)} options={VAT_RATES} />
-        <FInput label="Standaard uurtarief" value={formatEuro(data.defaultHourlyRateCents, false)} onChange={v => update('defaultHourlyRateCents', parseEuroToCents(v))} />
+        <FInput label="Standaard uurtarief" inputMode="decimal" value={uurtariefTekst} onChange={v => { setUurtariefTekst(v); update('defaultHourlyRateCents', parseEuroToCents(v)); }} onBlur={() => setUurtariefTekst(formatEuro(parseEuroToCents(uurtariefTekst), false))} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 12 }}>
         <label style={secondaryButton}><Upload size={16} /> Logo uploaden<input type="file" accept="image/*" onChange={e => uploadAsset('logoUrl', e.target.files?.[0])} style={{ display: 'none' }} /></label>
@@ -6324,7 +6330,7 @@ function BedrijfsInstellingen({ bedrijf, onOpslaan }) {
       <FInput label="Link algemene voorwaarden" value={data.termsUrl} onChange={v => update('termsUrl', v)} />
       <FInput label="Link betalingsvoorwaarden" value={data.paymentTermsUrl} onChange={v => update('paymentTermsUrl', v)} />
       <FTextarea label="Standaard voettekst" value={data.footerText} onChange={v => update('footerText', v)} />
-      <button type="button" onClick={async () => { await onOpslaan(data); setMelding('Bedrijfsinstellingen opgeslagen'); }} style={{ ...primaryButton, width: '100%', marginTop: 12 }}><Save size={17} /> Instellingen opslaan</button>
+      <button type="button" onClick={async () => { await onOpslaan({ ...data, defaultPaymentTerm: Number(data.defaultPaymentTerm || DEFAULT_COMPANY.defaultPaymentTerm), defaultHourlyRateCents: parseEuroToCents(uurtariefTekst) }); setMelding('Bedrijfsinstellingen opgeslagen'); }} style={{ ...primaryButton, width: '100%', marginTop: 12 }}><Save size={17} /> Instellingen opslaan</button>
     </section>
   );
 }
