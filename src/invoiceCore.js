@@ -66,7 +66,18 @@ export function makeId(prefix = 'id') {
 
 export function parseEuroToCents(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value * 100);
-  const cleaned = String(value ?? '').trim().replace(/\s/g, '').replace(/[^\d,.-]/g, '').replace(',', '.');
+  let cleaned = String(value ?? '').trim().replace(/\s/g, '').replace(/[^\d,.-]/g, '');
+  const lastComma = cleaned.lastIndexOf(',');
+  const lastDot = cleaned.lastIndexOf('.');
+  if (lastComma >= 0 && lastDot >= 0) {
+    const decimalSeparator = lastComma > lastDot ? ',' : '.';
+    const thousandSeparator = decimalSeparator === ',' ? '.' : ',';
+    cleaned = cleaned.replaceAll(thousandSeparator, '').replace(decimalSeparator, '.');
+  } else if (lastComma >= 0) {
+    cleaned = cleaned.replaceAll('.', '').replace(',', '.');
+  } else if ((cleaned.match(/\./g) || []).length > 1) {
+    cleaned = cleaned.replaceAll('.', '');
+  }
   const num = Number(cleaned);
   return Number.isFinite(num) ? Math.round(num * 100) : 0;
 }
