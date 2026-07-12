@@ -96,6 +96,18 @@ export function formatLongDateNl(dateIso) {
   return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+export function cleanAddressPart(value) {
+  return String(value || '').replace(/\s+/g, ' ').replace(/\s+,/g, ',').replace(/,+/g, ',').trim();
+}
+
+export function formatPostalCity(postalCode, city) {
+  return [cleanAddressPart(postalCode), cleanAddressPart(city)].filter(Boolean).join(' ');
+}
+
+export function formatAddressParts(...parts) {
+  return parts.map(cleanAddressPart).filter(Boolean).join(', ').replace(/\s+/g, ' ').replace(/,\s*,/g, ',').trim();
+}
+
 export function normalizeInvoiceItem(item = {}, index = 0) {
   return {
     id: item.id || makeId('regel'),
@@ -199,7 +211,7 @@ export function createEmptyInvoice(existingInvoices = [], company = DEFAULT_COMP
       reference: '',
       workOrderNumber: '',
       clientName: '',
-      description: 'Vervanging van het bestaande riooltrace, inclusief graafwerk, PVC-materialen, afvoer en herstel.',
+      description: 'Vervanging van het bestaande riooltracé, inclusief graafwerk, PVC-materialen, afvoer en herstel.',
       internalNotes: '',
     },
     items: [],
@@ -219,8 +231,9 @@ export function validateInvoice(invoice, company) {
   const customerEmail = String(invoice.customer?.email || '').trim();
   const customerPhone = String(invoice.customer?.phone || '').trim();
   const customerPhoneDigits = customerPhone.replace(/\D/g, '');
+  const companyAddress = String(company.address || '').trim();
   if (!company.legalName) errors.push('Vul eerst de juridische bedrijfsnaam in voordat u deze factuur definitief maakt.');
-  if (!company.address || !company.postalCode || !company.city) errors.push('Vul eerst het volledige bedrijfsadres in bij Bedrijfsinstellingen.');
+  if (!companyAddress || !/\d/.test(companyAddress) || !company.postalCode || !company.city) errors.push('Vul eerst het volledige bedrijfsadres in bij Bedrijfsinstellingen.');
   if (!company.kvkNumber) errors.push('Vul eerst het KvK-nummer van uw bedrijf in.');
   if (!company.vatNumber) errors.push('Vul eerst het btw-identificatienummer van uw bedrijf in.');
   if (!company.iban) errors.push('Vul eerst het IBAN in.');
