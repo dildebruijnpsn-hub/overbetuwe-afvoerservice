@@ -5253,6 +5253,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   const [regelEditId, setRegelEditId] = useState(null);
   const [toonFotos, setToonFotos] = useState(false);
   const [pvcBedrag, setPvcBedrag] = useState('');
+  const [invoerActief, setInvoerActief] = useState(false);
   const totalen = calculateInvoiceTotals(data.items || []);
   const definitief = data.status !== 'Concept';
   const stappen = ['Klant', 'Werkzaamheden', 'Factuurregels', 'Controle'];
@@ -5381,7 +5382,11 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   };
 
   return (
-    <div style={{ display: 'grid', gap: 14, paddingBottom: 112, minWidth: 0 }}>
+    <div
+      onFocusCapture={() => setInvoerActief(true)}
+      onBlurCapture={() => setTimeout(() => setInvoerActief(false), 120)}
+      style={{ display: 'grid', gap: 14, paddingBottom: 112, minWidth: 0 }}
+    >
       {melding && <div style={{ ...factuurCard, borderColor: COLORS.green, color: COLORS.green, fontWeight: 850 }}>{melding}</div>}
       {definitief && <div style={{ ...factuurCard, borderColor: '#FEDF89', background: '#FFFAEB', color: '#B54708', fontWeight: 800 }}>Deze factuur is definitief. Corrigeer inhoud normaal via een correctie- of creditfactuur.</div>}
 
@@ -5521,13 +5526,13 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
         <button type="button" disabled={stap === 3} onClick={() => setStap(Math.min(3, stap + 1))} style={{ ...secondaryButton, opacity: stap === 3 ? 0.45 : 1 }}>Volgende</button>
       </div>
 
-      <div style={{ position: 'fixed', left: 12, right: 12, bottom: 'max(12px, env(safe-area-inset-bottom))', zIndex: 160, boxSizing: 'border-box' }}>
+      {!invoerActief && <div style={{ position: 'fixed', left: 12, right: 12, bottom: 'max(12px, env(safe-area-inset-bottom))', zIndex: 160, boxSizing: 'border-box' }}>
         <div style={{ maxWidth: 980, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 8, background: 'rgba(255,255,255,0.98)', border: `1px solid ${COLORS.border}`, borderRadius: 22, boxShadow: '0 18px 44px rgba(15,45,92,0.18)', backdropFilter: 'blur(18px)' }}>
           <button type="button" disabled={bezig} onClick={() => save()} style={secondaryButton}><Save size={16} /> Opslaan</button>
           <button type="button" onClick={() => onPreview(data)} style={secondaryButton}><Eye size={16} /> PDF bekijken</button>
           <button type="button" disabled={!kanDefinitief || bezig} onClick={maakDefinitief} style={{ ...primaryButton, opacity: !kanDefinitief || bezig ? 0.48 : 1 }}><CheckCircle size={16} /> Definitief maken</button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -5567,6 +5572,10 @@ function FSelect({ label, value, onChange, options }) {
 
 function FactuurregelKaart({ item, bewerken, onBewerk, onChange, onDupliceer, onVerwijder }) {
   const line = calculateInvoiceTotals([item]).lines[0];
+  const [tariefTekst, setTariefTekst] = useState(formatEuro(item.unitPriceExVatCents, false));
+  useEffect(() => {
+    if (bewerken) setTariefTekst(formatEuro(item.unitPriceExVatCents, false));
+  }, [bewerken, item.id]);
   return (
     <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 12, background: COLORS.white, boxShadow: COLORS.shadowSoft }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
@@ -5589,7 +5598,16 @@ function FactuurregelKaart({ item, bewerken, onBewerk, onChange, onDupliceer, on
           <div style={responsiveGrid2}>
             <FInput label="Aantal" type="number" value={item.quantity} onChange={v => onChange({ quantity: v })} />
             <FSelect label="Eenheid" value={item.unit} onChange={v => onChange({ unit: v })} options={INVOICE_UNITS} />
-            <FInput label="Tarief excl. btw" inputMode="decimal" value={formatEuro(item.unitPriceExVatCents, false)} onChange={v => onChange({ unitPriceExVatCents: parseEuroToCents(v) })} />
+            <FInput
+              label="Tarief excl. btw"
+              inputMode="decimal"
+              value={tariefTekst}
+              onChange={v => {
+                setTariefTekst(v);
+                onChange({ unitPriceExVatCents: parseEuroToCents(v) });
+              }}
+              onBlur={() => setTariefTekst(formatEuro(parseEuroToCents(tariefTekst), false))}
+            />
             <FSelect label="Btw" value={item.vatRate} onChange={v => onChange({ vatRate: v })} options={VAT_RATES} />
             <FInput label="Korting %" type="number" value={item.discountPercentage || 0} onChange={v => onChange({ discountPercentage: Number(v) })} />
           </div>
