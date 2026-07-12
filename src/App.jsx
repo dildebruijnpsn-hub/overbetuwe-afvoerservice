@@ -5834,32 +5834,89 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   const sectionIcon = (x, y, type = 'doc', subtle = false) => {
     const cy = y - 1.4;
     doc.setFillColor(...(subtle ? paleBlue : lightBlue));
-    doc.circle(x, cy, 3.8, 'F');
+    doc.circle(x, cy, 3.35, 'F');
     doc.setDrawColor(...(subtle ? blue : [255, 255, 255]));
-    doc.setLineWidth(0.55);
+    doc.setLineWidth(0.5);
     doc.setLineCap('round');
     doc.setLineJoin('round');
     if (type === 'person') {
-      doc.circle(x, cy - 1.15, 0.95, 'S');
-      doc.line(x - 2.0, cy + 2.0, x - 1.2, cy + 0.9);
-      doc.line(x - 1.2, cy + 0.9, x + 1.2, cy + 0.9);
-      doc.line(x + 1.2, cy + 0.9, x + 2.0, cy + 2.0);
+      doc.circle(x, cy - 1.0, 0.82, 'S');
+      doc.line(x - 1.65, cy + 1.85, x - 0.95, cy + 0.75);
+      doc.line(x - 0.95, cy + 0.75, x + 0.95, cy + 0.75);
+      doc.line(x + 0.95, cy + 0.75, x + 1.65, cy + 1.85);
     } else if (type === 'pin') {
-      doc.circle(x, cy - 0.7, 0.9, 'S');
-      doc.line(x, cy + 3.0, x - 1.8, cy + 0.5);
-      doc.line(x, cy + 3.0, x + 1.8, cy + 0.5);
+      doc.circle(x, cy - 0.65, 0.75, 'S');
+      doc.line(x, cy + 2.55, x - 1.45, cy + 0.35);
+      doc.line(x, cy + 2.55, x + 1.45, cy + 0.35);
     } else if (type === 'bank') {
-      doc.line(x - 2.3, cy - 1.2, x, cy - 2.6);
-      doc.line(x, cy - 2.6, x + 2.3, cy - 1.2);
-      doc.line(x - 2.2, cy + 2.0, x + 2.2, cy + 2.0);
-      [-1.4, 0, 1.4].forEach(dx => doc.line(x + dx, cy - 0.8, x + dx, cy + 1.5));
+      doc.line(x - 2.0, cy - 1.05, x, cy - 2.25);
+      doc.line(x, cy - 2.25, x + 2.0, cy - 1.05);
+      doc.line(x - 1.95, cy + 1.75, x + 1.95, cy + 1.75);
+      [-1.2, 0, 1.2].forEach(dx => doc.line(x + dx, cy - 0.7, x + dx, cy + 1.35));
     } else {
-      doc.roundedRect(x - 1.8, cy - 2.3, 3.6, 4.8, 0.45, 0.45, 'S');
-      doc.line(x - 1.0, cy - 0.6, x + 1.0, cy - 0.6);
-      doc.line(x - 1.0, cy + 0.8, x + 1.0, cy + 0.8);
+      doc.roundedRect(x - 1.55, cy - 2.0, 3.1, 4.15, 0.35, 0.35, 'S');
+      doc.line(x - 0.8, cy - 0.45, x + 0.85, cy - 0.45);
+      doc.line(x - 0.8, cy + 0.75, x + 0.85, cy + 0.75);
     }
     doc.setLineCap('butt');
     doc.setLineJoin('miter');
+  };
+  const smallIcon = (x, y, type = 'doc') => {
+    doc.setDrawColor(...blue);
+    doc.setLineWidth(0.42);
+    doc.setLineCap('round');
+    doc.setLineJoin('round');
+    if (type === 'phone') {
+      doc.line(x - 0.6, y - 1.3, x + 0.9, y + 0.2);
+      doc.line(x - 1.0, y - 0.8, x - 0.55, y - 1.35);
+      doc.line(x + 0.35, y + 0.6, x + 0.95, y + 0.1);
+    } else if (type === 'pin') {
+      doc.circle(x, y - 0.55, 0.62, 'S');
+      doc.line(x, y + 1.2, x - 1.0, y - 0.15);
+      doc.line(x, y + 1.2, x + 1.0, y - 0.15);
+    } else if (type === 'mail') {
+      doc.rect(x - 1.45, y - 1.2, 2.9, 2.1, 'S');
+      doc.line(x - 1.45, y - 1.2, x, y + 0.1);
+      doc.line(x + 1.45, y - 1.2, x, y + 0.1);
+    } else if (type === 'web') {
+      doc.circle(x, y - 0.2, 1.3, 'S');
+      doc.line(x - 1.25, y - 0.2, x + 1.25, y - 0.2);
+      doc.line(x, y - 1.5, x, y + 1.1);
+    } else if (type === 'bank') {
+      doc.line(x - 1.35, y - 0.6, x, y - 1.45);
+      doc.line(x, y - 1.45, x + 1.35, y - 0.6);
+      doc.line(x - 1.35, y + 1.0, x + 1.35, y + 1.0);
+      [-0.75, 0, 0.75].forEach(dx => doc.line(x + dx, y - 0.35, x + dx, y + 0.75));
+    } else {
+      doc.roundedRect(x - 1.25, y - 1.45, 2.5, 2.75, 0.25, 0.25, 'S');
+      doc.line(x - 0.65, y - 0.35, x + 0.65, y - 0.35);
+      doc.line(x - 0.65, y + 0.55, x + 0.65, y + 0.55);
+    }
+    doc.setLineCap('butt');
+    doc.setLineJoin('miter');
+  };
+  const drawStar = (cx, cy, r = 1.25) => {
+    const pts = [];
+    for (let i = 0; i < 10; i += 1) {
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      const radius = i % 2 === 0 ? r : r * 0.45;
+      pts.push([cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius]);
+    }
+    doc.setFillColor(...gold);
+    const vectors = pts.slice(1).map((point, index) => [point[0] - pts[index][0], point[1] - pts[index][1]]);
+    doc.lines(vectors, pts[0][0], pts[0][1], [1, 1], 'F', true);
+  };
+  const drawInlineText = (chunks, x, y, size = 8.6) => {
+    let cursor = x;
+    chunks.forEach(chunk => {
+      const value = String(chunk.text || '');
+      if (!value) return;
+      doc.setFont(pdfFont, chunk.bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
+      doc.setTextColor(...text);
+      doc.text(value, cursor, y);
+      cursor += doc.getTextWidth(value);
+    });
   };
   const drawTableHeader = (headerY) => {
     doc.setFillColor(...blue);
@@ -5873,12 +5930,13 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.text('TARIEF EXCL. BTW', cols[4] - 4, headerY + 6, { align: 'right' });
     doc.text('TOTAAL EXCL. BTW', cols[5] - 3, headerY + 6, { align: 'right' });
   };
-  const contactLine = (value, y) => {
+  const contactLine = (value, y, icon = 'doc') => {
     if (!safe(value)) return;
+    smallIcon(136.6, y - 0.2, icon);
     doc.setFont(pdfFont, 'normal');
-    doc.setFontSize(8.2);
+    doc.setFontSize(7.8);
     doc.setTextColor(...text);
-    doc.text(safe(value), 140, y);
+    doc.text(safe(value), 141.2, y);
   };
   const footer = (page, total) => {
     hLine(H - 14, true);
@@ -5898,7 +5956,15 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   doc.setFont(pdfFont, 'bold'); doc.setFontSize(8.8); doc.setTextColor(...blue);
   doc.text(safe(bedrijf.legalName || DEFAULT_COMPANY.legalName), 140, 13.5);
   const companyAddressLine = formatAddressParts(bedrijf.address, formatPostalCity(bedrijf.postalCode, bedrijf.city));
-  [companyAddressLine, bedrijf.phone || DEFAULT_COMPANY.phone, bedrijf.email || DEFAULT_COMPANY.email, bedrijf.website || DEFAULT_COMPANY.website, `KvK ${bedrijf.kvkNumber || DEFAULT_COMPANY.kvkNumber}`, `Btw ${bedrijf.vatNumber || DEFAULT_COMPANY.vatNumber}`, `IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}`].filter(Boolean).forEach((line, index) => contactLine(line, 21 + index * 5.1));
+  [
+    [companyAddressLine, 'pin'],
+    [bedrijf.phone || DEFAULT_COMPANY.phone, 'phone'],
+    [bedrijf.email || DEFAULT_COMPANY.email, 'mail'],
+    [bedrijf.website || DEFAULT_COMPANY.website, 'web'],
+    [`KvK ${bedrijf.kvkNumber || DEFAULT_COMPANY.kvkNumber}`, 'doc'],
+    [`Btw ${bedrijf.vatNumber || DEFAULT_COMPANY.vatNumber}`, 'doc'],
+    [`IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}`, 'bank'],
+  ].filter(([line]) => safe(line)).forEach(([line, icon], index) => contactLine(line, 21 + index * 4.7, icon));
   hLine(55, true);
   doc.setFont(pdfFont, 'bold'); doc.setFontSize(29); doc.setTextColor(...blue); doc.text('FACTUUR', margin, 72);
   doc.setFontSize(8.8); doc.setTextColor(...text);
@@ -5966,10 +6032,14 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   }
   const payY = lowerY;
   sectionIcon(margin + 5, payY + 16, 'bank');
-  doc.setFont(pdfFont, 'normal'); doc.setFontSize(8.6); doc.setTextColor(...text);
-  const payText = `Wij verzoeken u het totaalbedrag van ${pdfEuro(totals.totalIncVatCents)} uiterlijk op ${formatLongDateNl(factuur.dueDate)} over te maken naar IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}, onder vermelding van factuurnummer ${factuur.invoiceNumber}.`;
-  doc.text(split(payText, 78), margin + 17, payY + 9);
-  doc.setFont(pdfFont, 'bold');
+  const payX = margin + 17;
+  const payAmount = pdfEuro(totals.totalIncVatCents);
+  const payDate = formatLongDateNl(factuur.dueDate);
+  const payIban = bedrijf.iban || DEFAULT_COMPANY.iban;
+  drawInlineText([{ text: 'Wij verzoeken u het totaalbedrag van ' }], payX, payY + 8.5);
+  drawInlineText([{ text: payAmount, bold: true }, { text: ' uiterlijk op ' }, { text: payDate, bold: true }], payX, payY + 14);
+  drawInlineText([{ text: 'over te maken naar IBAN ' }, { text: payIban, bold: true }, { text: ',' }], payX, payY + 19.5);
+  drawInlineText([{ text: 'onder vermelding van factuurnummer ' }, { text: factuur.invoiceNumber, bold: true }, { text: '.' }], payX, payY + 25);
 
   const boxX = 109, boxY = lowerY;
   doc.setDrawColor(...lineColor); doc.setFillColor(250, 252, 255);
@@ -5994,8 +6064,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   doc.text('Laat een Google review achter', boxX + 5.5, reviewY + 8);
   doc.setFont(pdfFont, 'normal'); doc.setFontSize(7.6); doc.setTextColor(...text);
   doc.text('Uw mening wordt zeer gewaardeerd', boxX + 5.5, reviewY + 13.8);
-  doc.setFillColor(...gold);
-  [0, 1, 2, 3, 4].forEach(i => doc.circle(boxX + 7 + i * 5.2, reviewY + 19, 1.15, 'F'));
+  [0, 1, 2, 3, 4].forEach(i => drawStar(boxX + 7 + i * 5.2, reviewY + 19, 1.25));
   doc.setDrawColor(...lineColor); doc.line(boxX + 59, reviewY + 3, boxX + 59, reviewY + 20);
   if (qr) doc.addImage(qr, imageType(qr), boxX + 64, reviewY + 1.1, 21.8, 21.8, undefined, 'NONE');
 
