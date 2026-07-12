@@ -70,12 +70,16 @@ export function parseEuroToCents(value) {
   return Number.isFinite(num) ? Math.round(num * 100) : 0;
 }
 
-export function formatEuro(cents, symbol = true) {
+export function formatCurrencyNL(cents, symbol = true) {
   const value = (Number(cents || 0) / 100).toLocaleString('nl-NL', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return symbol ? `€ ${value}` : value;
+  return symbol ? `\u20ac ${value}` : value;
+}
+
+export function formatEuro(cents, symbol = true) {
+  return formatCurrencyNL(cents, symbol);
 }
 
 export function formatDateNl(dateIso) {
