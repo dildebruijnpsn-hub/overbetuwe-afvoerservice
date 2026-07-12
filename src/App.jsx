@@ -13,10 +13,12 @@ import {
   calculateInvoiceTotals,
   createEmptyInvoice,
   createExampleItems,
+  formatAddressParts,
   formatCurrencyNL,
   formatDateNl,
   formatEuro,
   formatLongDateNl,
+  formatPostalCity,
   immutableSnapshot,
   makeId,
   normalizeInvoiceItem,
@@ -5332,7 +5334,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   };
   const voegArbeidToe = ({ totaalUren, tarief, monteurs, werkdagen, urenPerDag }) => {
     addItem({
-      description: `Arbeid monteurs${Number(monteurs || 1) > 1 ? ` (${monteurs} monteurs, ${werkdagen} dagen x ${urenPerDag} uur)` : ''}`,
+      description: 'Arbeid monteurs',
       quantity: String(totaalUren || 0),
       unit: 'uur',
       unitPriceExVatCents: parseEuroToCents(tarief || '65,00'),
@@ -5405,7 +5407,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
           <button type="button" onClick={vulWerkadresVanafKlant} style={{ ...secondaryButton, width: '100%', marginTop: 10 }}><MapPin size={16} /> Werkadres = klantadres</button>
           <FTextarea label="Omschrijving opdracht" value={data.project?.description} onChange={v => update('project.description', v)} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 }}>
-            <button type="button" onClick={() => update('project.description', 'Vervanging van het bestaande riooltrace, inclusief graafwerk, PVC-materialen, afvoer en herstel.')} style={secondaryButton}>Rioolvervanging</button>
+          <button type="button" onClick={() => update('project.description', 'Vervanging van het bestaande riooltracé, inclusief graafwerk, PVC-materialen, afvoer en herstel.')} style={secondaryButton}>Rioolvervanging</button>
             <button type="button" onClick={() => update('project.description', 'Ontstoppingswerkzaamheden uitgevoerd, leiding gereinigd en afvoer gecontroleerd.')} style={secondaryButton}>Ontstopping</button>
             <button type="button" onClick={() => update('project.description', 'Camera-inspectie uitgevoerd en bevindingen met klant besproken.')} style={secondaryButton}>Camera</button>
           </div>
@@ -5819,8 +5821,6 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   const imageType = (src) => String(src || '').toLowerCase().includes('png') ? 'PNG' : 'JPEG';
   const safe = value => String(value || '').trim();
   const split = (str, width) => doc.splitTextToSize(safe(str), width);
-  const formatAddressParts = (...parts) => parts.map(safe).filter(Boolean).join(', ');
-  const formatPostalCity = (postalCode, city) => [safe(postalCode), safe(city)].filter(Boolean).join(' ');
   const hLine = (y, strong = false) => {
     doc.setDrawColor(...(strong ? blue : lineColor));
     doc.setLineWidth(strong ? 0.42 : 0.22);
@@ -5945,7 +5945,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.setTextColor(...blue);
     doc.text(safe(bedrijf.legalName || DEFAULT_COMPANY.legalName), margin, H - 8.5);
     doc.setFont(pdfFont, 'normal');
-    doc.setFontSize(7.5);
+    doc.setFontSize(7.8);
     doc.setTextColor(...text);
     doc.text(`${safe(bedrijf.phone)}  -  ${safe(bedrijf.email)}  -  ${safe(bedrijf.website)}`, margin, H - 3.5);
     doc.setFontSize(8.2);
