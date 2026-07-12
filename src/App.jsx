@@ -5305,7 +5305,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
   const klantOpties = klanten.filter(k => k.companyName || k.contactName);
   const pvcRegel = (data.items || []).find(item => String(item.description || '').toLowerCase().includes('pvc-materialen'));
   useEffect(() => {
-    if (pvcRegel) setPvcBedrag(formatEuro(pvcRegel.unitPriceExVatCents || 0, false));
+    if (pvcRegel && pvcBedrag === '' && Number(pvcRegel.unitPriceExVatCents || 0) > 0) setPvcBedrag(formatEuro(pvcRegel.unitPriceExVatCents || 0, false));
   }, [pvcRegel?.unitPriceExVatCents]);
   const vulWerkadresVanafKlant = () => {
     update('project.workAddress', data.customer?.address || '');
@@ -5460,7 +5460,7 @@ function FactuurFormulier({ factuur, facturen, klanten, bedrijf, onOpslaan, onOp
       {stap === 2 && (
         <FactuurSectie titel="Factuurregels" icon={ClipboardList}>
           <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 12, background: COLORS.surfaceBlue, marginBottom: 12 }}>
-            <FInput label="PVC-materialen bedrag excl. btw" inputMode="decimal" value={pvcBedrag} onChange={v => { setPvcBedrag(v); updatePvcBedrag(v); }} />
+            <FInput label="PVC-materialen bedrag excl. btw" inputMode="decimal" value={pvcBedrag} onChange={v => { setPvcBedrag(v); updatePvcBedrag(v); }} onBlur={() => setPvcBedrag(pvcBedrag ? formatEuro(parseEuroToCents(pvcBedrag), false) : '')} />
           </div>
           <button type="button" onClick={() => setRegelToevoegen(regelToevoegen ? '' : 'keuze')} style={{ ...primaryButton, width: '100%', marginBottom: 10 }}><Plus size={17} /> Factuurregel toevoegen</button>
           {regelToevoegen && (
@@ -5553,8 +5553,8 @@ function FactuurSectie({ titel, icon: Icon, children }) {
   return <section style={{ ...factuurCard, width: '100%' }}><h2 style={{ margin: '0 0 12px', color: COLORS.blue, fontSize: 17, fontWeight: 950, display: 'flex', alignItems: 'center', gap: 8 }}><Icon size={18} /> {titel}</h2>{children}</section>;
 }
 
-function FInput({ label, value, onChange, type = 'text', disabled, inputMode }) {
-  return <label><span style={factuurLabel}>{label}</span><input disabled={disabled} type={type} inputMode={inputMode} value={value ?? ''} onChange={e => onChange(e.target.value)} style={{ ...factuurInput, opacity: disabled ? 0.65 : 1 }} /></label>;
+function FInput({ label, value, onChange, onBlur, type = 'text', disabled, inputMode }) {
+  return <label><span style={factuurLabel}>{label}</span><input disabled={disabled} type={type} inputMode={inputMode} value={value ?? ''} onChange={e => onChange(e.target.value)} onBlur={onBlur} style={{ ...factuurInput, opacity: disabled ? 0.65 : 1 }} /></label>;
 }
 
 function FTextarea({ label, value, onChange }) {
