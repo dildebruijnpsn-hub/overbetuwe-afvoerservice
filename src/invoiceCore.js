@@ -281,25 +281,23 @@ export function invoiceEmailSubject(invoice, company = DEFAULT_COMPANY) {
 
 export function invoiceEmailBody(invoice, company = DEFAULT_COMPANY) {
   const totals = calculateInvoiceTotals(invoice.items || []);
-  const customerName = invoice.customer?.companyName || invoice.customer?.contactName || '';
-  const aanhefNaam = String(customerName || '').trim();
-  const aanhef = aanhefNaam ? `Geachte heer/mevrouw ${aanhefNaam},` : 'Geachte heer/mevrouw,';
   const dueDate = formatLongDateNl(invoice.dueDate);
-  return `${aanhef}
+  return `Geachte heer/mevrouw,
 
 In de bijlage ontvangt u factuur ${invoice.invoiceNumber} voor de uitgevoerde werkzaamheden.
 
-Totaalbedrag:
-${formatEuro(totals.totalIncVatCents)} inclusief btw
+Factuurbedrag: ${formatEuro(totals.totalIncVatCents)} inclusief btw
+Vervaldatum: ${dueDate}
+Betalingskenmerk: ${invoice.invoiceNumber}
 
-Wij verzoeken u het totaalbedrag uiterlijk op ${dueDate} over te maken naar IBAN ${company.iban}, onder vermelding van factuurnummer ${invoice.invoiceNumber}.
+Wij verzoeken u het factuurbedrag over te maken naar IBAN ${company.iban}, onder vermelding van het betalingskenmerk.
 
 Heeft u vragen over deze factuur? Neem gerust contact met ons op.
 
 Met vriendelijke groet,
 
 ${company.legalName}
-${company.phone}
-${company.email}
-${company.website}`;
+Telefoon: ${company.phone}
+E-mail: ${company.email}
+Website: ${company.website}`;
 }

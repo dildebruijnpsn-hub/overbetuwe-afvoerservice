@@ -6054,7 +6054,7 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
     }
     setBezig(true);
     const { dataUrl, blob } = await genereerFactuurPdf(factuur, bedrijf);
-    const fileName = `Factuur-${factuur.invoiceNumber}.pdf`;
+    const fileName = `Factuur ${factuur.invoiceNumber} - Overbetuwe.pdf`;
     try {
       const response = await fetch('/api/send-invoice-email', {
         method: 'POST',
@@ -6090,7 +6090,7 @@ function FactuurEmailPreview({ factuur, bedrijf, onOpslaan }) {
         try {
           await navigator.share({
             title: subject,
-            text: `${body}\n\nOntvanger: ${to}`,
+            text: body.replace(/\r?\n/g, '\r\n'),
             files: [pdfFile],
           });
           await onOpslaan({

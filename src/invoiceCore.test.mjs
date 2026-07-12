@@ -185,6 +185,13 @@ assert.ok(invoiceMail.includes(formatEuro(voorbeeld.totalIncVatCents)), 'Factuur
 assert.ok(invoiceMail.includes(companyComplete.iban), 'Factuur e-mail bevat het IBAN');
 assert.ok(invoiceMail.includes(invoice.invoiceNumber), 'Factuur e-mail bevat het factuurnummer');
 assert.ok(invoiceMail.includes('uitgevoerde werkzaamheden'), 'Factuur e-mail bevat automatische factuurtekst');
+assert.ok(invoiceMail.includes('Factuurbedrag:'), 'Factuur e-mail toont een duidelijk factuurbedrag');
+assert.ok(invoiceMail.includes('Vervaldatum:'), 'Factuur e-mail toont de vervaldatum op een eigen regel');
+assert.ok(invoiceMail.includes('Betalingskenmerk:'), 'Factuur e-mail toont een duidelijk betalingskenmerk');
+assert.ok(invoiceMail.includes('Telefoon:'), 'Factuur e-mail gebruikt een verzorgde contactondertekening');
+assert.ok(!invoiceMail.includes('Totaalbedrag:\n'), 'Factuurbedrag en waarde mogen niet los van elkaar staan');
+assert.ok(appSource.includes("body.replace(/\\r?\\n/g, '\\r\\n')"), 'Mobiele mailoverdracht moet alinea-opmaak behouden');
+assert.ok(!appSource.slice(appSource.indexOf('function FactuurEmailPreview')).includes('Ontvanger: ${to}'), 'Ontvanger mag niet onderaan de factuurmail worden toegevoegd');
 
 const quote = createEmptyQuote([], companyComplete);
 quote.customer.companyName = 'Veilinghuis Timothy';
