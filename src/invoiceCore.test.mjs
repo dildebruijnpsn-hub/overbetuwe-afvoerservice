@@ -137,6 +137,7 @@ assert.ok(appSource.includes("sectionIcon(margin + 5, termsY - 1.2, 'doc', true)
 assert.ok(appSource.includes('const tableBottomY = y - 5'), 'PDF-generator gebruikt de werkelijke tabelhoogte');
 assert.ok(appSource.includes('Math.min(tableBottomY + 8, maxLowerY)'), 'Onderste PDF-blokken starten direct onder de tabel met footerbescherming');
 assert.ok(appSource.includes('const infoBottomY = Math.max(customerY, projectY) + 2.5'), 'Klant- en projectsectie berekenen hun hoogte dynamisch');
+assert.ok(appSource.includes('Terug naar facturen'), 'Factuurdetails en PDF-preview moeten een terugknop naar het facturenoverzicht hebben');
 assert.ok(appSource.includes('const descriptionTitleY = infoBottomY + 8'), 'Omschrijving start dynamisch onder klant/projectgegevens');
 assert.ok(appSource.includes('const reviewBoxH = 27'), 'Reviewkaart heeft ruimte voor een 25 mm QR-code');
 assert.ok(appSource.includes('25, 25'), 'QR-code wordt minimaal 25 bij 25 mm in de PDF geplaatst');
