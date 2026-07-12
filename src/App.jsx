@@ -5815,7 +5815,6 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   const logo = (await imageToDataUrl('/overbetuwe-logo-pdf.png')) || (await imageToDataUrl(bedrijf.logoUrl || DEFAULT_COMPANY.logoUrl)) || LOGO_DATA_URL;
   const qr = await imageToDataUrl(DEFAULT_COMPANY.reviewQrUrl || bedrijf.reviewQrUrl);
   const totals = calculateInvoiceTotals(factuur.items || []);
-  const pages = 1 + Math.ceil((factuur.photos || []).length / 6);
 
   const imageType = (src) => String(src || '').toLowerCase().includes('png') ? 'PNG' : 'JPEG';
   const safe = value => String(value || '').trim();
@@ -5832,9 +5831,47 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.setLineWidth(0.22);
     doc.line(x, y1, x, y2);
   };
-  const sectionIcon = (x, y) => {
-    doc.setFillColor(...lightBlue);
-    doc.circle(x, y - 1.4, 3.6, 'F');
+  const sectionIcon = (x, y, type = 'doc', subtle = false) => {
+    const cy = y - 1.4;
+    doc.setFillColor(...(subtle ? paleBlue : lightBlue));
+    doc.circle(x, cy, 3.8, 'F');
+    doc.setDrawColor(...(subtle ? blue : [255, 255, 255]));
+    doc.setLineWidth(0.55);
+    doc.setLineCap('round');
+    doc.setLineJoin('round');
+    if (type === 'person') {
+      doc.circle(x, cy - 1.15, 0.95, 'S');
+      doc.line(x - 2.0, cy + 2.0, x - 1.2, cy + 0.9);
+      doc.line(x - 1.2, cy + 0.9, x + 1.2, cy + 0.9);
+      doc.line(x + 1.2, cy + 0.9, x + 2.0, cy + 2.0);
+    } else if (type === 'pin') {
+      doc.circle(x, cy - 0.7, 0.9, 'S');
+      doc.line(x, cy + 3.0, x - 1.8, cy + 0.5);
+      doc.line(x, cy + 3.0, x + 1.8, cy + 0.5);
+    } else if (type === 'bank') {
+      doc.line(x - 2.3, cy - 1.2, x, cy - 2.6);
+      doc.line(x, cy - 2.6, x + 2.3, cy - 1.2);
+      doc.line(x - 2.2, cy + 2.0, x + 2.2, cy + 2.0);
+      [-1.4, 0, 1.4].forEach(dx => doc.line(x + dx, cy - 0.8, x + dx, cy + 1.5));
+    } else {
+      doc.roundedRect(x - 1.8, cy - 2.3, 3.6, 4.8, 0.45, 0.45, 'S');
+      doc.line(x - 1.0, cy - 0.6, x + 1.0, cy - 0.6);
+      doc.line(x - 1.0, cy + 0.8, x + 1.0, cy + 0.8);
+    }
+    doc.setLineCap('butt');
+    doc.setLineJoin('miter');
+  };
+  const drawTableHeader = (headerY) => {
+    doc.setFillColor(...blue);
+    doc.roundedRect(margin, headerY, W - margin * 2, 9.2, 1.1, 1.1, 'F');
+    doc.setFont(pdfFont, 'bold');
+    doc.setFontSize(7.7);
+    doc.setTextColor(255, 255, 255);
+    doc.text('OMSCHRIJVING', cols[0] + 3, headerY + 6);
+    doc.text('AANTAL', cols[2] - 4, headerY + 6, { align: 'right' });
+    doc.text('EENHEID', cols[2] + 14, headerY + 6);
+    doc.text('TARIEF EXCL. BTW', cols[4] - 4, headerY + 6, { align: 'right' });
+    doc.text('TOTAAL EXCL. BTW', cols[5] - 3, headerY + 6, { align: 'right' });
   };
   const contactLine = (value, y) => {
     if (!safe(value)) return;
@@ -5860,24 +5897,20 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   if (logo) doc.addImage(logo, imageType(logo), margin, 10.5, 96, 29, undefined, 'NONE');
   doc.setFont(pdfFont, 'bold'); doc.setFontSize(8.8); doc.setTextColor(...blue);
   doc.text(safe(bedrijf.legalName || DEFAULT_COMPANY.legalName), 140, 13.5);
-  contactLine(bedrijf.phone || DEFAULT_COMPANY.phone, 21);
-  contactLine(bedrijf.email || DEFAULT_COMPANY.email, 27);
-  contactLine(bedrijf.website || DEFAULT_COMPANY.website, 33);
-  contactLine(`KvK ${bedrijf.kvkNumber || DEFAULT_COMPANY.kvkNumber}`, 39);
-  contactLine(`Btw ${bedrijf.vatNumber || DEFAULT_COMPANY.vatNumber}`, 45);
-  contactLine(`IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}`, 51);
+  const companyAddressLine = formatAddressParts(bedrijf.address, formatPostalCity(bedrijf.postalCode, bedrijf.city));
+  [companyAddressLine, bedrijf.phone || DEFAULT_COMPANY.phone, bedrijf.email || DEFAULT_COMPANY.email, bedrijf.website || DEFAULT_COMPANY.website, `KvK ${bedrijf.kvkNumber || DEFAULT_COMPANY.kvkNumber}`, `Btw ${bedrijf.vatNumber || DEFAULT_COMPANY.vatNumber}`, `IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}`].filter(Boolean).forEach((line, index) => contactLine(line, 21 + index * 5.1));
   hLine(55, true);
   doc.setFont(pdfFont, 'bold'); doc.setFontSize(29); doc.setTextColor(...blue); doc.text('FACTUUR', margin, 72);
   doc.setFontSize(8.8); doc.setTextColor(...text);
   const metaX = 132, metaY = 63;
-  [['Factuurnummer:', factuur.invoiceNumber], ['Factuurdatum:', formatDateNl(factuur.invoiceDate)], ['Vervaldatum:', formatDateNl(factuur.dueDate)], ['Klantnummer:', factuur.customerNumber || factuur.customer?.customerNumber || '-']].forEach((r, i) => {
+  [['Factuurnummer:', factuur.invoiceNumber], ['Factuurdatum:', formatDateNl(factuur.invoiceDate)], ['Vervaldatum:', formatDateNl(factuur.dueDate)], ['Klantnummer:', factuur.customerNumber || factuur.customer?.customerNumber]].filter(r => safe(r[1])).forEach((r, i) => {
     doc.setFont(pdfFont, 'bold'); doc.text(r[0], metaX, metaY + i * 8);
     doc.setFont(pdfFont, 'normal'); doc.text(safe(r[1]), metaX + 39, metaY + i * 8);
   });
   hLine(89);
-  sectionIcon(margin + 4, 101, 'P');
+  sectionIcon(margin + 4, 101, 'person');
   doc.setFont(pdfFont, 'bold'); doc.setFontSize(9.2); doc.setTextColor(...blue); doc.text('FACTUUR AAN', margin + 11, 101);
-  sectionIcon(106, 101, 'P');
+  sectionIcon(106, 101, 'pin');
   doc.text('PROJECTGEGEVENS', 116, 101);
   vLine(96, 94, 134);
   doc.setFont(pdfFont, 'normal'); doc.setFontSize(8.8); doc.setTextColor(...text);
@@ -5886,30 +5919,31 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     doc.text(split(l, 74), margin + 11, 112 + i * 7);
   });
   const uitvoering = factuur.project?.deliveryDateFrom === factuur.project?.deliveryDateTo ? formatLongDateNl(factuur.project?.deliveryDateFrom) : `${formatLongDateNl(factuur.project?.deliveryDateFrom)} t/m ${formatLongDateNl(factuur.project?.deliveryDateTo)}`;
-  [['Werkadres:', formatAddressParts(factuur.project?.workAddress, factuur.project?.workCity) || '-'], ['Uitvoering:', uitvoering || '-'], ['Referentie:', factuur.project?.reference || '-'], ['Bijlage:', `${(factuur.photos || []).length} foto${(factuur.photos || []).length === 1 ? '' : "'s"}`]].forEach((r, i) => {
+  [['Werkadres:', formatAddressParts(factuur.project?.workAddress, factuur.project?.workCity)], ['Uitvoering:', uitvoering], ['Referentie:', factuur.project?.reference], ['Bijlage:', (factuur.photos || []).length > 0 ? `${(factuur.photos || []).length} foto${(factuur.photos || []).length === 1 ? '' : "'s"}` : '']].filter(r => safe(r[1])).forEach((r, i) => {
     doc.setFont(pdfFont, 'bold'); doc.setTextColor(...text); doc.text(r[0], 116, 112 + i * 9);
     doc.setFont(pdfFont, 'normal'); doc.text(split(r[1], 47), 141, 112 + i * 9);
   });
   hLine(141, true);
-  sectionIcon(margin + 4, 153, 'O');
+  sectionIcon(margin + 4, 153, 'doc');
   doc.setFont(pdfFont, 'bold'); doc.setFontSize(9.2); doc.setTextColor(...blue); doc.text('OMSCHRIJVING OPDRACHT', margin + 11, 153);
   const descriptionLines = split(factuur.project?.description || '-', 150);
   doc.setFont(pdfFont, 'normal'); doc.setFontSize(9); doc.setTextColor(...text); doc.text(descriptionLines, margin + 11, 158);
   const tableY = Math.max(168, 158 + descriptionLines.length * 4.6 + 7);
-  const tableW = W - margin * 2;
   const cols = [margin, 72, 100, 129, 167, W - margin];
-  doc.setFillColor(...blue); doc.roundedRect(margin, tableY, tableW, 9.2, 1.1, 1.1, 'F');
-  doc.setFont(pdfFont, 'bold'); doc.setFontSize(7.7); doc.setTextColor(255, 255, 255);
-  doc.text('OMSCHRIJVING', cols[0] + 3, tableY + 6);
-  doc.text('AANTAL', cols[2] - 4, tableY + 6, { align: 'right' });
-  doc.text('EENHEID', cols[2] + 14, tableY + 6);
-  doc.text('TARIEF EXCL. BTW', cols[4] - 4, tableY + 6, { align: 'right' });
-  doc.text('TOTAAL EXCL. BTW', cols[5] - 3, tableY + 6, { align: 'right' });
+  drawTableHeader(tableY);
   let y = tableY + 17;
   doc.setFont(pdfFont, 'normal'); doc.setFontSize(8.5); doc.setTextColor(...text);
   totals.lines.forEach(line => {
     const desc = split(line.description, 60);
     const rowH = Math.max(10.2, desc.length * 4.2 + 4);
+    if (y + rowH > H - 35) {
+      doc.addPage();
+      drawTableHeader(24);
+      y = 41;
+      doc.setFont(pdfFont, 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...text);
+    }
     doc.text(desc, cols[0] + 3, y);
     doc.text(String(line.quantity).replace('.', ','), cols[2] - 8, y, { align: 'right' });
     doc.text(line.unit, cols[2] + 18, y, { align: 'center' });
@@ -5919,14 +5953,25 @@ async function genereerFactuurPdf(factuur, bedrijf) {
     [cols[1], cols[2], cols[3], cols[4]].forEach(x => vLine(x, y - 7.5, y + rowH - 5));
     y += rowH;
   });
-  const payY = Math.max(222, y + 2);
-  sectionIcon(margin + 5, payY + 16, 'E');
+  const tableBottomY = y - 5;
+  const footerSafeY = H - 13;
+  const totalBoxH = 30;
+  const reviewBoxH = 23;
+  const lowerBlocksH = Math.max(28, totalBoxH + 6 + reviewBoxH) + 4;
+  const maxLowerY = footerSafeY - lowerBlocksH;
+  let lowerY = Math.min(tableBottomY + 8, maxLowerY);
+  if (tableBottomY > maxLowerY + 12) {
+    doc.addPage();
+    lowerY = 24;
+  }
+  const payY = lowerY;
+  sectionIcon(margin + 5, payY + 16, 'bank');
   doc.setFont(pdfFont, 'normal'); doc.setFontSize(8.6); doc.setTextColor(...text);
   const payText = `Wij verzoeken u het totaalbedrag van ${pdfEuro(totals.totalIncVatCents)} uiterlijk op ${formatLongDateNl(factuur.dueDate)} over te maken naar IBAN ${bedrijf.iban || DEFAULT_COMPANY.iban}, onder vermelding van factuurnummer ${factuur.invoiceNumber}.`;
   doc.text(split(payText, 78), margin + 17, payY + 9);
   doc.setFont(pdfFont, 'bold');
 
-  const boxX = 109, boxY = 223;
+  const boxX = 109, boxY = lowerY;
   doc.setDrawColor(...lineColor); doc.setFillColor(250, 252, 255);
   doc.roundedRect(boxX, boxY, 90, 30, 2, 2, 'FD');
   doc.setFont(pdfFont, 'normal'); doc.setFontSize(8.8); doc.setTextColor(...text);
@@ -5942,7 +5987,7 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   doc.text('TOTAAL INCLUSIEF BTW', boxX + 7, boxY + 27.3);
   doc.setFontSize(14); doc.text(pdfEuro(totals.totalIncVatCents), boxX + 83, boxY + 27.6, { align: 'right' });
 
-  const reviewY = 255;
+  const reviewY = boxY + totalBoxH + 6;
   doc.setDrawColor(...lineColor); doc.setFillColor(255, 255, 255);
   doc.roundedRect(boxX, reviewY, 90, 23, 2, 2, 'FD');
   doc.setFont(pdfFont, 'bold'); doc.setFontSize(8.8); doc.setTextColor(...blue);
@@ -5954,15 +5999,15 @@ async function genereerFactuurPdf(factuur, bedrijf) {
   doc.setDrawColor(...lineColor); doc.line(boxX + 59, reviewY + 3, boxX + 59, reviewY + 20);
   if (qr) doc.addImage(qr, imageType(qr), boxX + 64, reviewY + 1.1, 21.8, 21.8, undefined, 'NONE');
 
-  doc.setFillColor(242, 247, 255); doc.circle(margin + 5, H - 27, 3.8, 'F');
+  const termsY = Math.min(reviewY + reviewBoxH + 6, H - 21);
+  sectionIcon(margin + 5, termsY - 1.2, 'doc', true);
   doc.setFont(pdfFont, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
-  doc.text(bedrijf.footerText || DEFAULT_COMPANY.footerText, margin + 12, H - 16);
-  footer(1, pages);
+  doc.text(split(bedrijf.footerText || DEFAULT_COMPANY.footerText, 88), margin + 12, termsY);
+  // Footers are drawn after all pages exist so the total page count is exact.
 
   const photos = [...(factuur.photos || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   for (let p = 0; p < Math.ceil(photos.length / 6); p++) {
     doc.addPage();
-    const pageNo = p + 2;
     if (logo) doc.addImage(logo, imageType(logo), margin, 12, 72, 22, undefined, 'NONE');
     doc.setFont(pdfFont, 'bold'); doc.setFontSize(20); doc.setTextColor(...blue); doc.text('FOTOBIJLAGE', margin, 48);
     doc.setFont(pdfFont, 'normal'); doc.setFontSize(9); doc.setTextColor(...text);
@@ -5980,7 +6025,12 @@ async function genereerFactuurPdf(factuur, bedrijf) {
       doc.setTextColor(...text); doc.setFont(pdfFont,'bold'); doc.text(photo.category || 'Overig', x, yy + 51);
       doc.setFont(pdfFont,'normal'); doc.text(split(photo.caption || '', 54), x, yy + 57);
     }
-    footer(pageNo, pages);
+  }
+
+  const totalPages = doc.getNumberOfPages();
+  for (let pageNo = 1; pageNo <= totalPages; pageNo += 1) {
+    doc.setPage(pageNo);
+    footer(pageNo, totalPages);
   }
 
   const blob = doc.output('blob');
