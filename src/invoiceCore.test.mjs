@@ -14,6 +14,8 @@ import {
 
 const arbeid = calculateLine({ description: 'Arbeid monteurs', quantity: '32', unit: 'uur', unitPriceExVatCents: 6500, vatRate: '21' });
 assert.equal(arbeid.lineSubtotalCents, 208000, '32 uur x 65 euro moet 2.080,00 exclusief btw zijn');
+assert.equal(arbeid.lineVatCents, 43680, '32 uur x 65 euro moet 436,80 btw zijn');
+assert.equal(arbeid.lineTotalCents, 251680, '32 uur x 65 euro moet 2.516,80 inclusief btw zijn');
 
 const btw = calculateLine({ description: 'Test', quantity: '1', unit: 'post', unitPriceExVatCents: 10000, vatRate: '21' });
 assert.equal(btw.lineVatCents, 2100, '21 procent btw over 100,00 moet 21,00 zijn');
@@ -61,7 +63,7 @@ invoice.project.workPostalCode = '6677 PJ';
 invoice.project.workCity = 'Slijk-Ewijk';
 invoice.items = createExampleItems();
 const missingCompany = validateInvoice(invoice, DEFAULT_COMPANY);
-assert.ok(missingCompany.some(e => e.includes('vestigingsadres')), 'Verplichte bedrijfsadres-validatie moet actief zijn');
+assert.ok(missingCompany.some(e => e.includes('volledige bedrijfsadres')), 'Verplichte bedrijfsadres-validatie moet actief zijn');
 
 const companyComplete = { ...DEFAULT_COMPANY, address: 'Dorpsstraat 1', postalCode: '6661 AA', city: 'Elst' };
 assert.deepEqual(validateInvoice(invoice, companyComplete), [], 'Volledige voorbeeldfactuur moet valide zijn');
@@ -106,12 +108,19 @@ assert.ok(!appSource.includes(brokenEuro), 'PDF-generator mag geen kapot eurotek
 assert.ok(appSource.includes('formatCurrencyNL(cents)'), 'PDF-generator gebruikt centrale geldnotatie');
 assert.ok(!appSource.includes("contactLine('T'"), 'PDF-generator mag geen lettericonen voor contactgegevens gebruiken');
 assert.ok(appSource.includes('PROJECTGEGEVENS'), 'PDF-generator toont PROJECTGEGEVENS');
+assert.ok(appSource.includes('companyStreetLine'), 'PDF-generator laadt straat en huisnummer uit bedrijfsinstellingen');
+assert.ok(appSource.includes('companyPostalLine'), 'PDF-generator laadt postcode en plaats uit bedrijfsinstellingen');
+assert.ok(appSource.includes('quantity: String(totaalUren || 0)'), 'Arbeidscalculator moet totaaluren als aantal naar de factuurregel schrijven');
 assert.ok(appSource.includes("type === 'person'"), 'PDF-generator tekent een persoonicoon voor FACTUUR AAN');
 assert.ok(appSource.includes("type === 'pin'"), 'PDF-generator tekent een locatiepin voor PROJECTGEGEVENS');
 assert.ok(appSource.includes("type === 'bank'"), 'PDF-generator tekent een bankicoon voor BETALINGSINSTRUCTIE');
 assert.ok(appSource.includes("sectionIcon(margin + 5, termsY - 1.2, 'doc', true)"), 'PDF-generator tekent een documenticoon voor voorwaarden');
 assert.ok(appSource.includes('const tableBottomY = y - 5'), 'PDF-generator gebruikt de werkelijke tabelhoogte');
 assert.ok(appSource.includes('Math.min(tableBottomY + 8, maxLowerY)'), 'Onderste PDF-blokken starten direct onder de tabel met footerbescherming');
+assert.ok(appSource.includes('const infoBottomY = Math.max(customerY, projectY) + 2.5'), 'Klant- en projectsectie berekenen hun hoogte dynamisch');
+assert.ok(appSource.includes('const descriptionTitleY = infoBottomY + 8'), 'Omschrijving start dynamisch onder klant/projectgegevens');
+assert.ok(appSource.includes('const reviewBoxH = 27'), 'Reviewkaart heeft ruimte voor een 25 mm QR-code');
+assert.ok(appSource.includes('25, 25'), 'QR-code wordt minimaal 25 bij 25 mm in de PDF geplaatst');
 assert.ok(appSource.includes('doc.getNumberOfPages()'), 'PDF-generator berekent footer-paginering na het maken van alle paginas');
 assert.ok(!appSource.includes("['Referentie:', factuur.project?.reference], ['Bijlage:', `${(factuur.photos || []).length}"), 'Lege referentie en nul fotos mogen niet geforceerd worden getoond');
 
