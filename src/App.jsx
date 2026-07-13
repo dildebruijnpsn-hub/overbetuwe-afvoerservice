@@ -246,6 +246,11 @@ const STORAGE_KEYS = {
   migrated: 'overbetuwe_riool_migrated_to_supabase_v1',
 };
 
+const CLOUD_SYNC_KEYS = {
+  invoicesMigrated: 'overbetuwe_invoices_migrated_to_supabase_v1',
+  quotesMigrated: 'overbetuwe_quotes_migrated_to_supabase_v1',
+};
+
 // =================== DATUM HELPERS (LOKALE TIJD) ===================
 // We werken in de app altijd met het formaat 'YYYY-MM-DDTHH:MM' (16 chars) = lokale tijd, geen UTC.
 // Dit is hetzelfde formaat dat <input type="datetime-local"> gebruikt.
@@ -644,17 +649,57 @@ async function laadFactuurData() {
   const lokaalKlanten = leesJson(INVOICE_STORAGE_KEYS.customers, []);
   const lokaalBedrijf = leesJson(INVOICE_STORAGE_KEYS.company, DEFAULT_COMPANY);
   try {
-    const [remoteFacturen, remoteKlanten, remoteBedrijf] = await Promise.all([
+    let [remoteFacturen, remoteKlanten, remoteBedrijf] = await Promise.all([
       supabaseRequest('invoices?select=*&order=created_at.desc'),
       supabaseRequest('customers?select=*&order=created_at.desc'),
       supabaseRequest('companies?select=*&limit=1'),
     ]);
-    const facturen = Array.isArray(remoteFacturen) && remoteFacturen.length
-      ? remoteFacturen.map(vanDbFactuur)
-      : lokaalFacturen;
-    const klanten = Array.isArray(remoteKlanten) && remoteKlanten.length
-      ? remoteKlanten.map(vanDbKlant)
-      : lokaalKlanten;
+
+    remoteFacturen = Array.isArray(remoteFacturen) ? remoteFacturen : [];
+    remoteKlanten = Array.isArray(remoteKlanten) ? remoteKlanten : [];
+    remoteBedrijf = Array.isArray(remoteBedrijf) ? remoteBedrijf : [];
+
+    if (localStorage.getItem(CLOUD_SYNC_KEYS.invoicesMigrated) !== 'true') {
+      const remoteFactuurIds = new Set(remoteFacturen.map(item => item.id));
+      const remoteFactuurnummers = new Set(remoteFacturen.map(item => item.invoice_number));
+      for (const invoice of lokaalFacturen) {
+        if (!invoice?.id || !invoice?.invoiceNumber || remoteFactuurIds.has(invoice.id) || remoteFactuurnummers.has(invoice.invoiceNumber)) continue;
+        const rows = await supabaseRequest('invoices?on_conflict=id', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify(naarDbFactuur(invoice)),
+        });
+        if (rows?.[0]) remoteFacturen.push(rows[0]);
+      }
+
+      const remoteKlantIds = new Set(remoteKlanten.map(item => item.id));
+      for (const customer of lokaalKlanten) {
+        if (!customer?.id || remoteKlantIds.has(customer.id)) continue;
+        const rows = await supabaseRequest('customers?on_conflict=id', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify(naarDbKlant(customer)),
+        });
+        if (rows?.[0]) remoteKlanten.push(rows[0]);
+      }
+
+      if (remoteBedrijf.length === 0 && lokaalBedrijf?.legalName) {
+        const rows = await supabaseRequest('companies?on_conflict=id', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify({
+            ...naarDbBedrijf(lokaalBedrijf),
+            id: lokaalBedrijf.id || '00000000-0000-0000-0000-000000000001',
+          }),
+        });
+        if (rows?.[0]) remoteBedrijf = rows;
+      }
+
+      localStorage.setItem(CLOUD_SYNC_KEYS.invoicesMigrated, 'true');
+    }
+
+    const facturen = remoteFacturen.map(vanDbFactuur);
+    const klanten = remoteKlanten.map(vanDbKlant);
     const bedrijf = Array.isArray(remoteBedrijf) && remoteBedrijf[0]
       ? vanDbBedrijf(remoteBedrijf[0])
       : lokaalBedrijf;
@@ -939,7 +984,24 @@ async function laadOffertes() {
   const lokaal = leesJson(QUOTE_STORAGE_KEYS.quotes, []);
   try {
     const rows = await supabaseRequest('quotes?select=*&order=created_at.desc');
-    const offertes = Array.isArray(rows) ? rows.map(vanDbOfferte) : lokaal;
+    const remote = Array.isArray(rows) ? [...rows] : [];
+
+    if (localStorage.getItem(CLOUD_SYNC_KEYS.quotesMigrated) !== 'true') {
+      const remoteIds = new Set(remote.map(item => item.id));
+      const remoteNummers = new Set(remote.map(item => item.quote_number));
+      for (const quote of lokaal) {
+        if (!quote?.id || !quote?.quoteNumber || remoteIds.has(quote.id) || remoteNummers.has(quote.quoteNumber)) continue;
+        const opgeslagen = await supabaseRequest('quotes?on_conflict=id', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify(naarDbOfferte(quote)),
+        });
+        if (opgeslagen?.[0]) remote.push(opgeslagen[0]);
+      }
+      localStorage.setItem(CLOUD_SYNC_KEYS.quotesMigrated, 'true');
+    }
+
+    const offertes = remote.map(vanDbOfferte);
     schrijfJson(QUOTE_STORAGE_KEYS.quotes, offertes);
     return offertes;
   } catch (e) {
