@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, Camera, Siren, LayoutDashboard, CloudSun, Phone, Navigation, MessageCircle, Image as ImageIcon, CreditCard, FileText, Eye, Copy, Save, Share2, Upload, GripVertical, CheckCircle, Ban, RefreshCw, Send } from 'lucide-react';
+import { Plus, Wrench, Search, BarChart3, ArrowLeft, Check, AlertTriangle, Clock, MapPin, Download, Trash2, Edit2, X, Home, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, Camera, Siren, LayoutDashboard, CloudSun, Phone, Navigation, MessageCircle, Image as ImageIcon, CreditCard, FileText, Eye, Copy, Save, Share2, Upload, GripVertical, CheckCircle, Ban, RefreshCw, Send, Users } from 'lucide-react';
 import {
   DEFAULT_COMPANY,
   INVOICE_STATUSES,
@@ -1268,6 +1268,55 @@ export default function OverbetuweApp() {
     return opgeslagen;
   };
 
+  const nieuweStoringVoorKlant = (klant) => {
+    setGekozenAdres({
+      opdrachtgever: 'Particulier',
+      straat: klant.address || '',
+      huisnummer: '',
+      plaats: klant.city || '',
+      klantNaam: klant.companyName || klant.contactName || '',
+      telefoon: klant.phone || '',
+      email: klant.email || '',
+    });
+    setBewerkenStoring(null);
+    setScherm('nieuw');
+  };
+
+  const nieuweFactuurVoorKlant = async (klant) => {
+    const concept = await maakNieuweFactuur(facturen, bedrijf);
+    concept.customerId = klant.id || '';
+    concept.customerNumber = klant.customerNumber || '';
+    concept.customer = { ...concept.customer, ...klant };
+    concept.project = {
+      ...concept.project,
+      workAddress: klant.address || '',
+      workPostalCode: klant.postalCode || '',
+      workCity: klant.city || '',
+    };
+    setBewerkenFactuur(concept);
+    setFactuurSubScherm('formulier');
+    setScherm('facturen');
+  };
+
+  const nieuweOfferteVoorKlant = async (klant) => {
+    const concept = await maakNieuweOfferte(offertes, bedrijf);
+    concept.customerId = klant.id || '';
+    concept.customerNumber = klant.customerNumber || '';
+    concept.customer = { ...concept.customer, ...klant };
+    concept.project = {
+      ...concept.project,
+      workAddress: klant.address || '',
+      workHouseNumber: '',
+      workAddressAddition: '',
+      workPostalCode: klant.postalCode || '',
+      workCity: klant.city || '',
+      workAddressIsCustomerAddress: true,
+    };
+    setBewerkenOfferte(concept);
+    setOfferteSubScherm('formulier');
+    setScherm('offertes');
+  };
+
   if (laden) {
     return (
       <div style={{ minHeight: '100vh', background: COLORS.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1367,6 +1416,22 @@ export default function OverbetuweApp() {
           onBewerk={(s) => { setBewerkenStoring(s); setScherm('nieuw'); }}
           onVerwijder={verwijderStoring}
           initieelFilter={alleFilter}
+        />
+      )}
+
+      {scherm === 'klanten' && (
+        <KlantDossier
+          klanten={klanten}
+          storingen={storingen}
+          facturen={facturen}
+          offertes={offertes}
+          onOpslaanKlant={opslaanKlant}
+          onNieuweStoring={nieuweStoringVoorKlant}
+          onNieuweFactuur={nieuweFactuurVoorKlant}
+          onNieuweOfferte={nieuweOfferteVoorKlant}
+          onOpenStoring={(storing) => { setBewerkenStoring(storing); setScherm('nieuw'); }}
+          onOpenFactuur={(factuur) => { setBewerkenFactuur(factuur); setFactuurSubScherm('bekijken'); setScherm('facturen'); }}
+          onOpenOfferte={(offerte) => { setBewerkenOfferte(offerte); setOfferteSubScherm('bekijken'); setScherm('offertes'); }}
         />
       )}
 
@@ -1611,7 +1676,7 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
     { id: 'reparaties', label: 'Reparaties', sub: 'Planning uitvoeren', icon: Wrench },
     { id: 'alle', label: 'Storingen', sub: 'Overzicht en beheer', icon: ClipboardList },
     { id: 'dashboard', label: 'Dashboard', sub: 'Statistieken', icon: LayoutDashboard },
-    { id: 'dashboard', label: 'Rapportages', sub: 'PDF en export', icon: Camera },
+    { id: 'klanten', label: 'Klanten', sub: 'Dossiers en historie', icon: Users },
     { id: 'alle', label: 'Spoedmeldingen', sub: `${spoedOpen.length} open`, icon: Siren, filter: 'spoed' },
   ];
 
@@ -1768,6 +1833,236 @@ function HomeScherm({ storingen, eenvoudig, setEenvoudig, gaNaar, setAlleFilter,
     </div>
   );
 }
+
+// =================== KLANTDOSSIER ===================
+function dossierTekst(value) {
+  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function dossierTelefoon(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function dossierKlantNaam(klant = {}) {
+  return klant.companyName || klant.contactName || [klant.firstName, klant.lastName].filter(Boolean).join(' ') || 'Naam onbekend';
+}
+
+function dossierSleutel(klant = {}) {
+  const email = dossierTekst(klant.email);
+  const telefoon = dossierTelefoon(klant.phone || klant.telefoon);
+  const adres = dossierTekst([klant.address || klant.adres, klant.postalCode, klant.city || klant.plaats].filter(Boolean).join(' '));
+  const naam = dossierTekst(dossierKlantNaam(klant));
+  return email ? `e:${email}` : telefoon ? `t:${telefoon}` : adres ? `a:${adres}` : naam && naam !== 'particulier' ? `n:${naam}` : '';
+}
+
+function dossierKomtOvereen(klant, bron = {}) {
+  if (bron.customerId && klant.id && bron.customerId === klant.id) return true;
+  const snapshot = bron.customer || bron;
+  const klantEmail = dossierTekst(klant.email);
+  const bronEmail = dossierTekst(snapshot.email);
+  if (klantEmail && bronEmail && klantEmail === bronEmail) return true;
+  const klantTelefoon = dossierTelefoon(klant.phone);
+  const bronTelefoon = dossierTelefoon(snapshot.phone || snapshot.telefoon);
+  if (klantTelefoon && bronTelefoon && klantTelefoon === bronTelefoon) return true;
+  const klantAdres = dossierTekst([klant.address, klant.postalCode, klant.city].filter(Boolean).join(' '));
+  const bronAdres = dossierTekst([snapshot.address || snapshot.adres, snapshot.postalCode, snapshot.city || snapshot.plaats].filter(Boolean).join(' '));
+  if (klantAdres && bronAdres && klantAdres === bronAdres) return true;
+  const klantNaam = dossierTekst(dossierKlantNaam(klant));
+  const bronNaam = dossierTekst(snapshot.companyName || snapshot.contactName || snapshot.klantNaam || snapshot.opdrachtgever);
+  return Boolean(klantNaam && klantNaam !== 'particulier' && bronNaam && klantNaam === bronNaam);
+}
+
+function KlantDossier({ klanten, storingen, facturen, offertes, onOpslaanKlant, onNieuweStoring, onNieuweFactuur, onNieuweOfferte, onOpenStoring, onOpenFactuur, onOpenOfferte }) {
+  const [zoek, setZoek] = useState('');
+  const [geselecteerd, setGeselecteerd] = useState(null);
+  const [formulier, setFormulier] = useState(null);
+  const [fout, setFout] = useState('');
+
+  const dossierKlanten = useMemo(() => {
+    const resultaat = (klanten || []).map(klant => ({ ...klant }));
+    const sleutels = new Set(resultaat.map(dossierSleutel).filter(Boolean));
+    const voegAfgeleidToe = (bron, id) => {
+      const klant = {
+        id,
+        companyName: bron.companyName || '',
+        contactName: bron.contactName || bron.klantNaam || (bron.opdrachtgever === 'Particulier' ? '' : bron.opdrachtgever) || '',
+        firstName: bron.firstName || '',
+        lastName: bron.lastName || '',
+        address: bron.address || bron.adres || '',
+        postalCode: bron.postalCode || '',
+        city: bron.city || bron.plaats || '',
+        phone: bron.phone || bron.telefoon || '',
+        email: bron.email || '',
+        customerNumber: bron.customerNumber || '',
+        vatNumber: bron.vatNumber || '',
+        notes: bron.notes || '',
+        _afgeleid: true,
+      };
+      const sleutel = dossierSleutel(klant);
+      if (!sleutel || sleutels.has(sleutel)) return;
+      sleutels.add(sleutel);
+      resultaat.push(klant);
+    };
+    (facturen || []).forEach(item => voegAfgeleidToe(item.customer || {}, `afgeleid-factuur-${item.id}`));
+    (offertes || []).forEach(item => voegAfgeleidToe(item.customer || {}, `afgeleid-offerte-${item.id}`));
+    (storingen || []).forEach(item => voegAfgeleidToe(item, `afgeleid-storing-${item.id}`));
+    return resultaat.sort((a, b) => dossierKlantNaam(a).localeCompare(dossierKlantNaam(b), 'nl'));
+  }, [klanten, storingen, facturen, offertes]);
+
+  const resultaten = useMemo(() => {
+    const term = dossierTekst(zoek);
+    if (!term) return dossierKlanten;
+    return dossierKlanten.filter(klant => dossierTekst([
+      dossierKlantNaam(klant), klant.address, klant.postalCode, klant.city, klant.phone, klant.email, klant.customerNumber,
+    ].join(' ')).includes(term));
+  }, [dossierKlanten, zoek]);
+
+  const maakBewerkModel = (klant = {}) => ({
+    ...klant,
+    id: klant._afgeleid ? '' : klant.id,
+    companyName: klant.companyName || '',
+    contactName: klant.contactName || '',
+    address: klant.address || '',
+    postalCode: klant.postalCode || '',
+    city: klant.city || '',
+    phone: klant.phone || '',
+    email: klant.email || '',
+    customerNumber: klant.customerNumber || '',
+    vatNumber: klant.vatNumber || '',
+    notes: klant.notes || '',
+  });
+
+  const bewaarFormulier = async () => {
+    const naam = formulier.companyName || formulier.contactName;
+    if (!String(naam || '').trim()) return setFout('Vul de naam van de klant in.');
+    if (!formulier.address || !formulier.postalCode || !formulier.city) return setFout('Vul het volledige klantadres in.');
+    if (formulier.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formulier.email)) return setFout('Voer een geldig e-mailadres in.');
+    setFout('');
+    const schoon = { ...formulier };
+    delete schoon._afgeleid;
+    const opgeslagen = await onOpslaanKlant(schoon);
+    setGeselecteerd(opgeslagen);
+    setFormulier(null);
+  };
+
+  const zorgVoorOpgeslagenKlant = async (klant) => {
+    if (!klant?._afgeleid) return klant;
+    const schoon = { ...klant, id: undefined };
+    delete schoon._afgeleid;
+    const opgeslagen = await onOpslaanKlant(schoon);
+    setGeselecteerd(opgeslagen);
+    return opgeslagen;
+  };
+
+  const inputStyle = { width: '100%', boxSizing: 'border-box', border: `1px solid ${COLORS.borderStrong}`, borderRadius: 10, padding: '12px', background: COLORS.white, color: COLORS.text, fontSize: 16 };
+  const actionStyle = { border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '11px 12px', background: COLORS.white, color: COLORS.blue, fontWeight: 850, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer' };
+
+  if (formulier) {
+    const velden = [
+      ['companyName', 'Bedrijfsnaam (optioneel)'], ['contactName', 'Naam klant'], ['address', 'Straat en huisnummer'],
+      ['postalCode', 'Postcode'], ['city', 'Plaats'], ['phone', 'Telefoonnummer'], ['email', 'E-mailadres'],
+      ['customerNumber', 'Klantnummer (optioneel)'], ['notes', 'Opmerkingen (optioneel)'],
+    ];
+    return (
+      <main style={{ padding: '16px 14px 120px', maxWidth: 760, margin: '0 auto' }}>
+        <button type="button" onClick={() => { setFormulier(null); setFout(''); }} style={{ ...actionStyle, marginBottom: 16 }}><ArrowLeft size={18} /> Terug</button>
+        <h1 style={{ margin: '0 0 4px', color: COLORS.blue, fontSize: 24, fontWeight: 950 }}>{formulier.id ? 'Klant wijzigen' : 'Nieuwe klant'}</h1>
+        <p style={{ margin: '0 0 18px', color: COLORS.textLight, fontSize: 13 }}>Deze gegevens worden centraal opgeslagen en zijn daarna op alle toestellen beschikbaar.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+          {velden.map(([veld, label]) => (
+            <label key={veld} style={{ gridColumn: ['address', 'email', 'notes'].includes(veld) ? '1 / -1' : 'auto' }}>
+              <span style={{ display: 'block', marginBottom: 5, color: COLORS.textLight, fontSize: 11, fontWeight: 850, textTransform: 'uppercase' }}>{label}</span>
+              {veld === 'notes'
+                ? <textarea rows={3} value={formulier[veld]} onChange={e => setFormulier({ ...formulier, [veld]: e.target.value })} style={{ ...inputStyle, resize: 'vertical' }} />
+                : <input type={veld === 'email' ? 'email' : veld === 'phone' ? 'tel' : 'text'} value={formulier[veld]} onChange={e => setFormulier({ ...formulier, [veld]: e.target.value })} style={inputStyle} />}
+            </label>
+          ))}
+        </div>
+        {fout && <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: '#FFF4F2', color: COLORS.red, fontWeight: 750 }}>{fout}</div>}
+        <button type="button" onClick={bewaarFormulier} style={{ width: '100%', marginTop: 16, border: 'none', borderRadius: 13, padding: 14, background: COLORS.blue, color: COLORS.white, fontWeight: 900, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Save size={18} /> Klant opslaan</button>
+      </main>
+    );
+  }
+
+  if (geselecteerd) {
+    const klant = dossierKlanten.find(item => item.id === geselecteerd.id) || geselecteerd;
+    const klantStoringen = (storingen || []).filter(item => dossierKomtOvereen(klant, item)).sort((a, b) => String(b.datum || b.aangemaakt || '').localeCompare(String(a.datum || a.aangemaakt || '')));
+    const klantFacturen = (facturen || []).filter(item => dossierKomtOvereen(klant, item)).sort((a, b) => String(b.invoiceDate || '').localeCompare(String(a.invoiceDate || '')));
+    const klantOffertes = (offertes || []).filter(item => dossierKomtOvereen(klant, item)).sort((a, b) => String(b.quoteDate || '').localeCompare(String(a.quoteDate || '')));
+    const openstaand = klantFacturen.filter(item => item.paymentStatus !== 'Betaald' && item.status !== 'Geannuleerd').reduce((som, item) => som + Number(item.totalIncVatCents || calculateInvoiceTotals(item.items || []).totalIncVatCents || 0), 0);
+    const telefoon = dossierTelefoon(klant.phone);
+    const whatsapp = telefoon ? `https://wa.me/${telefoon.startsWith('0') ? `31${telefoon.slice(1)}` : telefoon}` : '';
+    const sections = [
+      { titel: 'Klussen', items: klantStoringen, leeg: 'Nog geen klussen', open: onOpenStoring, label: item => item.typeMelding || 'Storing', meta: item => `${formatDateNl(String(item.datum || item.aangemaakt || '').slice(0, 10))} - ${item.statusStoring || 'Nieuw'}`, bedrag: null },
+      { titel: 'Offertes', items: klantOffertes, leeg: 'Nog geen offertes', open: onOpenOfferte, label: item => item.quoteNumber || 'Offerte', meta: item => `${formatDateNl(item.quoteDate)} - ${quoteDisplayStatus(item)}`, bedrag: item => formatEuro(Number(item.totalIncVatCents || quoteTotals(item.items || []).totalIncVatCents || 0)) },
+      { titel: 'Facturen', items: klantFacturen, leeg: 'Nog geen facturen', open: onOpenFactuur, label: item => item.invoiceNumber || 'Factuur', meta: item => `${formatDateNl(item.invoiceDate)} - ${item.paymentStatus || item.status || 'Open'}`, bedrag: item => formatEuro(Number(item.totalIncVatCents || calculateInvoiceTotals(item.items || []).totalIncVatCents || 0)) },
+    ];
+    return (
+      <main style={{ padding: '16px 14px 120px', maxWidth: 820, margin: '0 auto' }}>
+        <button type="button" onClick={() => setGeselecteerd(null)} style={{ ...actionStyle, marginBottom: 14 }}><ArrowLeft size={18} /> Alle klanten</button>
+        <section style={{ background: COLORS.blue, color: COLORS.white, borderRadius: 16, padding: 18, boxShadow: COLORS.shadowSoft }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <span style={{ width: 44, height: 44, borderRadius: 13, background: 'rgba(255,255,255,0.14)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Users size={23} /></span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.15, overflowWrap: 'anywhere' }}>{dossierKlantNaam(klant)}</h1>
+              <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.78)', fontSize: 13, lineHeight: 1.5 }}>{[klant.address, formatPostalCity(klant.postalCode, klant.city)].filter(Boolean).map(regel => <div key={regel}>{regel}</div>)}</div>
+            </div>
+            <button type="button" title="Gegevens wijzigen" onClick={() => setFormulier(maakBewerkModel(klant))} style={{ border: 'none', width: 40, height: 40, borderRadius: 12, background: COLORS.white, color: COLORS.blue, display: 'grid', placeItems: 'center' }}><Edit2 size={18} /></button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginTop: 16 }}>
+            {[['Klussen', klantStoringen.length], ['Documenten', klantOffertes.length + klantFacturen.length], ['Openstaand', formatEuro(openstaand)]].map(([label, value]) => <div key={label} style={{ background: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: '10px 8px' }}><strong style={{ display: 'block', fontSize: 17, overflowWrap: 'anywhere' }}>{value}</strong><span style={{ display: 'block', marginTop: 3, fontSize: 10, opacity: 0.72 }}>{label}</span></div>)}
+          </div>
+        </section>
+
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${[klant.phone, whatsapp, klant.address].filter(Boolean).length || 1}, minmax(0, 1fr))`, gap: 8, marginTop: 12 }}>
+          {klant.phone && <button type="button" onClick={() => { window.location.href = `tel:${klant.phone}`; }} style={actionStyle}><Phone size={17} /> Bellen</button>}
+          {whatsapp && <button type="button" onClick={() => window.open(whatsapp, '_blank')} style={actionStyle}><MessageCircle size={17} /> WhatsApp</button>}
+          {klant.address && <button type="button" onClick={() => window.open(maakNavigatieLink({ adres: klant.address, plaats: klant.city }), '_blank')} style={actionStyle}><Navigation size={17} /> Route</button>}
+        </div>
+
+        <section style={{ marginTop: 18 }}>
+          <h2 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 900 }}>Nieuwe actie</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+            <button type="button" onClick={async () => onNieuweStoring(await zorgVoorOpgeslagenKlant(klant))} style={{ ...actionStyle, flexDirection: 'column', minHeight: 76 }}><Wrench size={19} /> Storing</button>
+            <button type="button" onClick={async () => onNieuweOfferte(await zorgVoorOpgeslagenKlant(klant))} style={{ ...actionStyle, flexDirection: 'column', minHeight: 76 }}><FileText size={19} /> Offerte</button>
+            <button type="button" onClick={async () => onNieuweFactuur(await zorgVoorOpgeslagenKlant(klant))} style={{ ...actionStyle, flexDirection: 'column', minHeight: 76 }}><CreditCard size={19} /> Factuur</button>
+          </div>
+        </section>
+
+        {klant.email || klant.phone ? <section style={{ marginTop: 18, padding: '13px 0', borderTop: `1px solid ${COLORS.border}`, borderBottom: `1px solid ${COLORS.border}`, color: COLORS.textLight, fontSize: 13, lineHeight: 1.65 }}>{klant.phone && <div>{klant.phone}</div>}{klant.email && <div style={{ overflowWrap: 'anywhere' }}>{klant.email}</div>}</section> : null}
+
+        {sections.map(section => (
+          <section key={section.titel} style={{ marginTop: 20 }}>
+            <h2 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 900 }}>{section.titel} <span style={{ color: COLORS.textLight }}>({section.items.length})</span></h2>
+            {section.items.length === 0 ? <div style={{ padding: 14, borderRadius: 12, background: COLORS.white, border: `1px solid ${COLORS.border}`, color: COLORS.textLight, fontSize: 13 }}>{section.leeg}</div> : <div style={{ display: 'grid', gap: 8 }}>
+              {section.items.map(item => <button key={item.id} type="button" onClick={() => section.open(item)} style={{ width: '100%', border: `1px solid ${COLORS.border}`, background: COLORS.white, borderRadius: 13, padding: 12, display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', boxShadow: COLORS.shadowSoft }}><span style={{ flex: 1, minWidth: 0 }}><strong style={{ display: 'block', color: COLORS.text, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{section.label(item)}</strong><span style={{ display: 'block', marginTop: 3, color: COLORS.textLight, fontSize: 11 }}>{section.meta(item)}</span></span>{section.bedrag && <strong style={{ color: COLORS.blue, fontSize: 13, whiteSpace: 'nowrap' }}>{section.bedrag(item)}</strong>}<ChevronRight size={17} color={COLORS.textLight} /></button>)}
+            </div>}
+          </section>
+        ))}
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ padding: '16px 14px 120px', maxWidth: 820, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+        <div><h1 style={{ margin: 0, color: COLORS.blue, fontSize: 24, fontWeight: 950 }}>Klanten</h1><div style={{ marginTop: 3, color: COLORS.textLight, fontSize: 12 }}>{dossierKlanten.length} klantdossiers</div></div>
+        <button type="button" onClick={() => setFormulier(maakBewerkModel())} style={{ border: 'none', background: COLORS.blue, color: COLORS.white, borderRadius: 13, padding: '11px 13px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}><Plus size={18} /> Nieuw</button>
+      </div>
+      <label style={{ position: 'relative', display: 'block', marginBottom: 14 }}>
+        <Search size={18} color={COLORS.textLight} style={{ position: 'absolute', left: 13, top: 13 }} />
+        <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek op naam, adres, plaats of telefoon" style={{ width: '100%', boxSizing: 'border-box', border: `1px solid ${COLORS.borderStrong}`, borderRadius: 13, padding: '12px 13px 12px 42px', fontSize: 16, color: COLORS.text, background: COLORS.white }} />
+      </label>
+      {resultaten.length === 0 ? <div style={{ padding: 20, border: `1px solid ${COLORS.border}`, borderRadius: 14, background: COLORS.white, color: COLORS.textLight, textAlign: 'center' }}>Geen klanten gevonden.</div> : <div style={{ display: 'grid', gap: 9 }}>
+        {resultaten.map(klant => {
+          const aantalDocumenten = (facturen || []).filter(item => dossierKomtOvereen(klant, item)).length + (offertes || []).filter(item => dossierKomtOvereen(klant, item)).length;
+          const aantalKlussen = (storingen || []).filter(item => dossierKomtOvereen(klant, item)).length;
+          return <button key={klant.id} type="button" onClick={() => setGeselecteerd(klant)} style={{ width: '100%', minWidth: 0, border: `1px solid ${COLORS.border}`, background: COLORS.white, borderRadius: 14, padding: 13, display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', boxShadow: COLORS.shadowSoft }}><span style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: COLORS.surfaceBlue, color: COLORS.blue, display: 'grid', placeItems: 'center' }}><Users size={19} /></span><span style={{ flex: 1, minWidth: 0 }}><strong style={{ display: 'block', color: COLORS.text, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dossierKlantNaam(klant)}</strong><span style={{ display: 'block', marginTop: 3, color: COLORS.textLight, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[klant.address, klant.city].filter(Boolean).join(', ') || klant.phone || klant.email || 'Nog geen adres'}</span><span style={{ display: 'block', marginTop: 4, color: COLORS.blueLight, fontSize: 10, fontWeight: 800 }}>{aantalKlussen} klussen - {aantalDocumenten} documenten</span></span><ChevronRight size={18} color={COLORS.textLight} /></button>;
+        })}
+      </div>}
+    </main>
+  );
+}
 // =================== STORING FORMULIER ===================
 function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, alleStoringen, onOpslaan, onAnnuleer, onPlanHerhaling }) {
   // Huidige datum + tijd in lokale tijd (voor datetime-local input)
@@ -1795,9 +2090,9 @@ function StoringFormulier({ bestaand, adresVoorIngevuld, voorIngesteldeDatum, al
     opmerking: '',
     prijsregels: [],
     betalingMethode: '',
-    klantNaam: '',
-    telefoon: '',
-    email: '',
+    klantNaam: adresVoorIngevuld?.klantNaam || '',
+    telefoon: adresVoorIngevuld?.telefoon || '',
+    email: adresVoorIngevuld?.email || '',
     factuurStatus: 'Niet gefactureerd',
     bonBedrag: '',
     bonOpmerking: '',
